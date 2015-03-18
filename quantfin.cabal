@@ -54,8 +54,9 @@ library
   exposed-modules:     Quant.YieldCurve
                        Quant.VolSurf
                        Quant.Models
-                       Quant.Models.Black
+                       --Quant.Models.Black
                        Quant.RNProcess
+                       Control.Monad.MonteCarlo
   
   -- Modules included in this library but not exported.
   -- other-modules:       
@@ -66,8 +67,16 @@ library
   -- Other library packages from which modules are imported.
   build-depends:       base >=4.7 && <4.8,
                        vector,
-                       mtl
-  
+                       mtl,
+                       rvar,
+                       transformers,
+                       MonadPrompt,
+                       rvar,
+                       random-source,
+                       MonadRandom,
+                       random-fu,
+                       mwc-random
+
   -- Directories containing source files.
   hs-source-dirs:      src
   
