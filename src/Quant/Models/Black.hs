@@ -1,11 +1,12 @@
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Quant.Models.Black (
     Black (..)
 ) where
 
 import Quant.RNProcess
+import Data.Random
 import Quant.Models
 import Data.Complex
 import Control.Monad.State
@@ -16,7 +17,7 @@ model with a yield curve for a
 -}
 data Black = forall a . ForwardGen a => Black !Double !Double !a
 
-data BlackState = BlackState (U.Vector Double)
+type BlackState = U.Vector Double
 
 instance CharFunc Black where
     charFunc (Black _ vol _) t k = exp 
@@ -26,8 +27,17 @@ instance CharFunc Black where
             t' = t :+ 0
             vol' = vol :+ 0
 
-instance Discretize Black BlackState where
+instance Discretize Black where
+    type InternalState = BlackState
+
     initialize (Black s _ _) trials = put 
-                $ BlackState 
                 $ U.replicate trials s
-    evolve = undefined
+
+    evolve (Black _ vol fg) t1 t2 = do
+        stateVec <- get
+        let fwd = forwardRN fg t1 t2
+            g = (fwd - vol*vol/2) * (t2-t1)
+        postVal <- U.forM stateVec $ \x -> do
+             resid <- lift stdNormal
+             return $ x * exp (g + resid*vol)
+        put postVal

@@ -12,10 +12,10 @@ forwards for a given period.
 Minimal complete definition: 'forwardRN'.
 -}
 class ForwardGen a where
-    -- | Function to generate a forward.
-    forwardRN :: a -> Double -> Double -> Double -> Double
+    -- | Function to generate a forward multiplier.
+    forwardRN :: a -> Double -> Double -> Double
 
 data BasicForward = forall a . YieldCurve a => BasicForward a
 
 instance ForwardGen BasicForward where
-    forwardRN (BasicForward yc) s t1 t2 = s * disc yc t1 / disc yc t2
+    forwardRN (BasicForward yc) t1 t2 =  forward yc t1 t2
