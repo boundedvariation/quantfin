@@ -54,7 +54,7 @@ library
   exposed-modules:     Quant.YieldCurve
                        Quant.VolSurf
                        Quant.Models
-                       --Quant.Models.Black
+                       Quant.Models.Black
                        Quant.RNProcess
                        Control.Monad.MonteCarlo
   
