@@ -20,12 +20,13 @@ data Black = forall a . ForwardGen a => Black !Double !Double !a
 type BlackState = U.Vector Double
 
 instance CharFunc Black where
-    charFunc (Black _ vol _) t k = exp 
-        $ negate i*vol'*vol'/2.0*t'*k-vol'*vol'*k*k/2.0*t'
+    charFunc (Black s vol _) t k = exp 
+        $ i*logs + negate i*vol'*vol'/2.0*t'*k-vol'*vol'*k*k/2.0*t'
         where
             i = 0 :+ 1
             t' = t :+ 0
             vol' = vol :+ 0
+            logs = log s :+ 0
 
 instance Discretize Black where
     type InternalState = BlackState
