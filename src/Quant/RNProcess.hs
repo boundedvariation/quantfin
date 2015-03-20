@@ -18,4 +18,4 @@ class ForwardGen a where
 data BasicForward = forall a . YieldCurve a => BasicForward a
 
 instance ForwardGen BasicForward where
-    forwardRN (BasicForward yc) t1 t2 =  forward yc t1 t2
+    forwardRN (BasicForward yc) =  forward yc
