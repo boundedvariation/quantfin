@@ -53,6 +53,7 @@ library
   -- Modules exported by the library.
   exposed-modules:     Quant.YieldCurve
                        Quant.VolSurf
+                       Quant.Math.Integration
                        Quant.Models
                        Quant.Models.Black
                        Quant.RNProcess
