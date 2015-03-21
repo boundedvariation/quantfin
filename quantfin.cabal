@@ -56,6 +56,7 @@ library
                        Quant.Math.Integration
                        Quant.Models
                        Quant.Models.Black
+                       Quant.Models.Merton
                        Quant.RNProcess
                        Control.Monad.MonteCarlo
   
