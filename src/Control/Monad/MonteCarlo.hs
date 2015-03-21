@@ -3,8 +3,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 
 module Control.Monad.MonteCarlo (
-	MonteCarlo
-  ,	MonteCarloT
+    MonteCarlo
+  , MonteCarloT
   , runMC )
 where
 
