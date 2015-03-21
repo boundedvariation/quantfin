@@ -18,7 +18,13 @@ import qualified Data.Vector.Unboxed as U
 {- | 'Merton' represents a Merton model (Black-Scholes w/ jumps).
 
 -}
-data Merton = forall a . ForwardGen a => Merton !Double !Double !Double !Double !Double !a
+data Merton = forall a . ForwardGen a => Merton {
+   mertonInitial     :: !Double
+ , mertonVol         :: !Double
+ , mertonIntensity   :: !Double
+ , mertonJumpMean    ::  !Double
+ , mertonJumpVol     ::  !Double 
+ , mertonForwardGen  ::  !a } 
 
 type MertonState = U.Vector Double
 
