@@ -57,8 +57,7 @@ library
                        Quant.Models
                        Quant.Models.Black
                        Quant.Models.Merton
-                       Quant.RNProcess
-                       Control.Monad.MonteCarlo
+                       Quant.MonteCarlo
   
   -- Modules included in this library but not exported.
   -- other-modules:       
