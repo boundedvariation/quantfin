@@ -45,9 +45,9 @@ instance Discretize Black (U.Vector Double) where
         put (postVal, (cfs, t2))
 
     discounter (Black _ _ _ dsc) t = do
-        size <- U.length <$> (gets (fst . snd))
+        size <- U.length <$> gets (fst . snd)
         return $ U.replicate size $ disc dsc t
 
     forwardGen (Black _ _ fg _) t1 t2 = do
-        size <- U.length <$> (gets (fst . snd))
+        size <- U.length <$> gets (fst . snd)
         return $ U.replicate size $ forward fg t1 t2

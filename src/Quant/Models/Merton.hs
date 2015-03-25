@@ -52,9 +52,9 @@ instance Discretize Merton (U.Vector Double) where
         put (postVal, (cfs, t2))
 
     discounter (Merton _ _ _ _ _ _ dsc) t = do
-        size <- U.length <$> (gets fst)
+        size <- U.length <$> gets fst
         return $ U.replicate size $ disc dsc t
 
     forwardGen (Merton _ _ _ _ _ fg _) t1 t2 = do
-        size <- U.length <$> (gets fst)
+        size <- U.length <$> gets fst
         return $ U.replicate size $ forward fg t1 t2
