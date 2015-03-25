@@ -71,7 +71,8 @@ library
                        vector,
                        mtl,
                        transformers,
-                       random-fu
+                       random-fu,
+                       containers
 
   -- Directories containing source files.
   hs-source-dirs:      src
