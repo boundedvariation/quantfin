@@ -41,7 +41,7 @@ type MonteCarloT m s = StateT s (RVarT m)
 type MonteCarlo s a = MonteCarloT Identity s a
 
 runMC :: MonadRandom (StateT b Identity) => MonteCarlo s c -> b -> s -> c
-runMC mc randState initState = flip evalState randState $ sampleRVarTWith lift $ (evalStateT mc initState)
+runMC mc randState initState = flip evalState randState $ sampleRVarTWith lift (evalStateT mc initState)
 
 data ContingentClaim = ContingentClaim {
     payoutTime :: Double
@@ -157,12 +157,12 @@ short = multiplier (-1)
 
 spreadPayout :: OptionType -> Double -> Double -> Double -> Double
 spreadPayout pc lowStrike highStrike x = case pc of
-    Put  -> if x > highStrike then 0 else
-                if x < lowStrike then (highStrike - lowStrike) else
-                    highStrike - x
-    Call -> if x > highStrike then (highStrike-lowStrike) else
-                if x < lowStrike then 0 else
-                    x - lowStrike
+    Put  | x > highStrike -> 0
+         | x < lowStrike  -> highStrike - lowStrike
+         | otherwise      -> highStrike - x
+    Call | x > highStrike -> highStrike - lowStrike
+         | x < lowStrike  -> 0
+         | otherwise      -> x - lowStrike
 
 spreadOption :: OptionType -> Double -> Double -> Double -> ContingentClaim
 spreadOption pc lowStrike highStrike t = terminalOnly t $ spreadPayout pc lowStrike highStrike
@@ -171,7 +171,7 @@ data ContingentClaimBasket = ContingentClaimBasket [ContingentClaim] [Double]
 
 ccBasket :: [ContingentClaim] -> ContingentClaimBasket
 ccBasket ccs = ContingentClaimBasket (sortBy (comparing payoutTime) ccs) monitorTimes
-    where monitorTimes = sort $ nub $ concat $ map (map fst . observations) ccs
+    where monitorTimes = sort $ nub $ concatMap (map fst . observations) ccs
 
 runSimulation1 :: (Discretize a (U.Vector Double),
                          MonadRandom (StateT b Identity)) =>
