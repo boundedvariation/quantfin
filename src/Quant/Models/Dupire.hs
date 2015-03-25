@@ -25,22 +25,23 @@ data Dupire = forall a b . (YieldCurve a, YieldCurve b) => Dupire {
 --mkDupire s vs fg dsc = 
 
 instance Discretize Dupire (U.Vector Double) where
-    initialize (Dupire s _ _ _) trials = put (U.replicate trials s, (U.replicate trials 0, 0))
+    initialize (Dupire s _ _ _) trials = put (U.replicate trials s, 0)
 
-    evolve d@(Dupire _ f _ _) t1 t2 = do
-        (stateVec, (cfs, _)) <- get
-        fwd <- forwardGen d t1 t2
+    evolve d@(Dupire _ f _ _) t2 = do
+        (stateVec, t1) <- get
+        fwd <- forwardGen d t2
         let vols   = U.map (f t1) stateVec
             grwth = U.map (\(fwdVal, v) -> (fwdVal - v * v / 2) / (t2-t1)) $ U.zip fwd vols
         postVal <- U.forM (U.zip3 grwth stateVec vols) $ \ ( g,x,v ) -> do
              normResid <- lift stdNormal
              return $ x * exp (g + normResid*v)
-        put (postVal, (cfs, t2))
+        put (postVal, t2)
 
     discounter (Dupire _ _ _ dsc) t = do
         size <- U.length <$> gets fst
         return $ U.replicate size $ disc dsc t
 
-    forwardGen (Dupire _ _ fg _) t1 t2 = do
+    forwardGen (Dupire _ _ fg _) t2 = do
+        (_ , t1) <- get
         size <- U.length <$> gets fst
         return $ U.replicate size $ forward fg t1 t2
