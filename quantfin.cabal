@@ -57,6 +57,7 @@ library
                        Quant.Models
                        Quant.Models.Black
                        Quant.Models.Merton
+                       Quant.Models.Dupire
                        Quant.MonteCarlo
   
   -- Modules included in this library but not exported.
