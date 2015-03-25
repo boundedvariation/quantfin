@@ -42,6 +42,6 @@ instance Discretize Dupire (U.Vector Double) where
         return $ U.replicate size $ disc dsc t
 
     forwardGen (Dupire _ _ fg _) t2 = do
-        (_ , t1) <- get
+        t1 <- gets snd
         size <- U.length <$> gets fst
         return $ U.replicate size $ forward fg t1 t2
