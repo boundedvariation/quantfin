@@ -9,6 +9,7 @@ module Quant.MonteCarlo (
   , runMC 
   --, runMCT
   , ContingentClaim(..)
+  , ContingentClaimBasket(..)
   , Discretize(..)
   , simulate1ObservableState
   , OptionType(..)
@@ -69,7 +70,7 @@ class Discretize a b where
     evolve mdl t2 = do
         (b, t1) <- get
         let ms = minStep mdl b --Ugh, I know.
-        if (t2-t1) > ms then 
+        if (t2-t1) < ms then 
             evolve' mdl t2
         else do
             evolve' mdl (t1 + ms)
@@ -84,7 +85,6 @@ class Discretize a b where
     minStep :: Discretize a b => a -> b -> Double --need to think of a way to get the b out with introducing a mess.
     minStep _ _ = 1/250
 
--- TODO: evolve' that makes sure steps are small enough chunks...
 
 simulate1ObservableState :: Discretize a (U.Vector Double) => 
     a -> ContingentClaimBasket -> Int ->
