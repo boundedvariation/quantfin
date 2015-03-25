@@ -70,14 +70,8 @@ library
   build-depends:       base >=4.7 && <4.8,
                        vector,
                        mtl,
-                       rvar,
                        transformers,
-                       MonadPrompt,
-                       rvar,
-                       random-source,
-                       MonadRandom,
-                       random-fu,
-                       mwc-random
+                       random-fu
 
   -- Directories containing source files.
   hs-source-dirs:      src
