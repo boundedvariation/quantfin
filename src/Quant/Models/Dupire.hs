@@ -27,7 +27,7 @@ data Dupire = forall a b . (YieldCurve a, YieldCurve b) => Dupire {
 instance Discretize Dupire (U.Vector Double) where
     initialize (Dupire s _ _ _) trials = put (U.replicate trials s, 0)
 
-    evolve d@(Dupire _ f _ _) t2 = do
+    evolve' d@(Dupire _ f _ _) t2 = do
         (stateVec, t1) <- get
         fwd <- forwardGen d t2
         let vols   = U.map (f t1) stateVec

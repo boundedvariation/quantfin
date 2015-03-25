@@ -20,6 +20,7 @@ module Quant.MonteCarlo (
   , runSimulation1
   , ccBasket
   , quickSim1
+  , processClaimWithMap
   )
 where
 
@@ -30,6 +31,7 @@ import Data.Functor.Identity
 import Data.List
 import Data.RVar
 import Data.Ord
+import Debug.Trace
 import System.Random.Mersenne.Pure64
 import qualified Data.Map as Map
 import qualified Data.Vector.Unboxed as U
@@ -64,10 +66,25 @@ class Discretize a b where
     -- | Evolves the internal states of the MC variables between two times.
     -- | First variable is t0, second is t1
     evolve :: Discretize a b => a -> Double -> MonteCarlo (b, Double) ()
+    evolve mdl t2 = do
+        (b, t1) <- get
+        let ms = minStep mdl b --Ugh, I know.
+        if (t2-t1) > ms then 
+            evolve' mdl t2
+        else do
+            evolve' mdl (t1 + ms)
+            evolve mdl t2
 
     discounter :: Discretize a b => a -> Double -> MonteCarlo (b, Double) (U.Vector Double)
 
     forwardGen :: Discretize a b => a -> Double -> MonteCarlo (b, Double) (U.Vector Double)
+
+    evolve' :: Discretize a b => a -> Double -> MonteCarlo (b, Double) ()
+
+    minStep :: Discretize a b => a -> b -> Double --need to think of a way to get the b out with introducing a mess.
+    minStep _ _ = 1/250
+
+-- TODO: evolve' that makes sure steps are small enough chunks...
 
 simulate1ObservableState :: Discretize a (U.Vector Double) => 
     a -> ContingentClaimBasket -> Int ->
@@ -77,15 +94,14 @@ simulate1ObservableState modl (ContingentClaimBasket cs ts) trials = do
     avg <$> process Map.empty (U.replicate trials 0) cs ts
         where 
             process m cfs ccs@(c@(ContingentClaim t _ _):cs') (obsT:ts') = do
+                vals <- gets fst
                 if t > obsT then do
                     evolve modl obsT
-                    vals <- gets fst
                     let m' = Map.insert obsT vals m
                     process m' cfs ccs ts'
                 else 
                     if obsT == t then do
                         evolve modl obsT
-                        vals <- gets fst
                         let m' = Map.insert obsT vals m
                             cfs' = processClaimWithMap c m'
                         d <- discounter modl obsT
@@ -115,8 +131,9 @@ processClaimWithMap (ContingentClaim _ c obs) m = U.fromList $ map c vals
     where vals = map (\(t , f) -> U.map f $ m Map.! t) obs
 
 vanillaPayout :: OptionType -> Double -> Double -> Double
-vanillaPayout pc strike x | pc == Put  = max (x-strike) 0
-                          | otherwise  = max (strike-x) 0
+vanillaPayout pc strike x = case pc of
+    Put  -> max (strike - x) 0
+    Call -> max (x - strike) 0
 
 binaryPayout :: OptionType -> Double -> Double -> Double -> Double
 binaryPayout pc strike amount x = case pc of

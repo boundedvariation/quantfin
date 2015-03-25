@@ -35,7 +35,7 @@ data Black = forall a b  . (YieldCurve a, YieldCurve b) => Black {
 instance Discretize Black (U.Vector Double) where
     initialize (Black s _ _ _) trials = put (U.replicate trials s, 0)
 
-    evolve b@(Black _ vol _ _) t2 = do
+    evolve' b@(Black _ vol _ _) t2 = do
         (stateVec, t1) <- get
         fwd <- forwardGen b t2
         let grwth = U.map (\x -> (x - vol*vol/2) * (t2-t1)) fwd
@@ -52,3 +52,5 @@ instance Discretize Black (U.Vector Double) where
         size <- U.length <$> gets fst
         t1 <- gets snd
         return $ U.replicate size $ forward fg t1 t2
+
+    minStep _ _ = 100

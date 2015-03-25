@@ -37,7 +37,7 @@ data Merton = forall a b . (YieldCurve a, YieldCurve b) => Merton {
 instance Discretize Merton (U.Vector Double) where
     initialize (Merton s _ _ _ _ _ _) trials = put (U.replicate trials s, 0)
 
-    evolve m@(Merton _ vol intensity mu sig _ _) t2 = do
+    evolve' m@(Merton _ vol intensity mu sig _ _) t2 = do
         (stateVec, t1) <- get
         fwd <- forwardGen m t2
         let correction = exp (mu + sig*sig /2.0) - 1
