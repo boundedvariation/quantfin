@@ -72,13 +72,13 @@ simulate1Observable :: Discretize a (U.Vector Double) =>
     a -> ContingentClaim -> Int ->
     SingleObservable (U.Vector Double)
 simulate1Observable modl (ContingentClaim tmat c obs) trials = do
-  initialize modl trials
-  obsFuncResults <- forM obs $ \(t, obfunc) -> do
+    initialize modl trials
+    obsFuncResults <- forM obs $ \(t, obfunc) -> do
+        currentT <- gets (snd . snd)
+        evolve modl currentT t
+        vals <- gets fst
+        return $ U.map obfunc vals
     currentT <- gets (snd . snd)
-    evolve modl currentT t
-    vals <- gets fst
-    return $ U.map obfunc vals
-  currentT <- gets (snd . snd)
-  evolve modl currentT tmat
-  d <- discounter modl tmat
-  return $ U.zipWith (*) d $ U.fromList $ map c obsFuncResults
+    evolve modl currentT tmat
+    d <- discounter modl tmat
+    return $ U.zipWith (*) d $ U.fromList $ map c obsFuncResults
