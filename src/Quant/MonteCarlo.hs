@@ -9,25 +9,37 @@ module Quant.MonteCarlo (
   , runMC 
   , ContingentClaim(..)
   , Discretize(..)
-  , simulate1Observable
+  , simulate1ObservableState
   , OptionType
   , vanillaOption
   , binaryOption
+  , spreadOption
   , multiplier
+  , short
+  , runSimulation1
+  , ccBasket
   )
 where
 
 import Data.Random
+import Control.Applicative
 import Control.Monad.State
 import Data.Functor.Identity
+import Data.List
+import Data.Ord
+import qualified Data.Map as Map
 import qualified Data.Vector.Unboxed as U
 
 type MonteCarloT m s = StateT s (RVarT m)
 
 type MonteCarlo s a = MonteCarloT Identity s a
 
-runMC :: RandomSource m s => MonteCarloT m a b -> s -> a -> m a
-runMC mc randState initState = runRVarT (execStateT mc initState) randState
+runMCT :: RandomSource m s => MonteCarloT m a b -> s -> a -> m b
+runMCT mc randState initState = runRVarT (evalStateT mc initState) randState
+
+runMC :: RandomSource Identity s => MonteCarloT Identity a1 a -> s -> a1 -> a
+runMC mc randState initState = runIdentity $ runMCT mc randState initState
+
 
 data ContingentClaim = ContingentClaim {
     payoutTime :: Double
@@ -57,28 +69,59 @@ class Discretize a b where
 
     forwardGen :: Discretize a b => a -> Double -> MonteCarlo (b, Double) (U.Vector Double)
 
-type SingleObservable a = MonteCarlo (U.Vector Double, Double) a
-
-simulate1Observable :: Discretize a (U.Vector Double) => 
-    a -> ContingentClaim -> Int ->
-    SingleObservable (U.Vector Double)
-simulate1Observable modl (ContingentClaim tmat c obs) trials = do
+simulate1ObservableState :: Discretize a (U.Vector Double) => 
+    a -> ContingentClaimBasket -> Int ->
+    MonteCarlo (U.Vector Double, Double) Double
+simulate1ObservableState modl (ContingentClaimBasket cs ts) trials = do
     initialize modl trials
-    obsFuncResults <- forM obs $ \(t, obfunc) -> do
-        evolve modl t
-        vals <- gets fst
-        return $ U.map obfunc vals
-    evolve modl tmat
-    d <- discounter modl tmat
-    return $ U.zipWith (*) d $ U.fromList $ map c obsFuncResults
+    avg <$> process Map.empty (U.replicate trials 0) cs ts
+        where 
+            process m cfs ccs@(c@(ContingentClaim t _ _):cs') (obsT:ts') = do
+                if t > obsT then do
+                    evolve modl obsT
+                    vals <- gets fst
+                    let m' = Map.insert obsT vals m
+                    process m' cfs ccs ts'
+                else 
+                    if obsT == t then do
+                        evolve modl obsT
+                        vals <- gets fst
+                        let m' = Map.insert obsT vals m
+                            cfs' = processClaimWithMap c m'
+                        d <- discounter modl obsT
+                        let cfs'' = cfs' |*| d
+                        process m' (cfs |+| cfs'') cs' ts'
+                    else do
+                        evolve modl t
+                        let cfs' = processClaimWithMap c m
+                        d <- discounter modl obsT
+                        let cfs'' = cfs' |*| d
+                        process m (cfs |+| cfs'') cs' (obsT:ts')
+
+            process m cfs (c:cs') [] = do
+                d <- discounter modl (payoutTime c)
+                let cfs' = d |*| processClaimWithMap c m
+                process m (cfs |+| cfs') cs' []
+
+            process _ cfs _ _ = return cfs
+
+            v1 |+| v2 = U.zipWith (+) v1 v2
+            v1 |*| v2 = U.zipWith (*) v1 v2
+
+            avg v = U.sum v / fromIntegral (U.length v)
+
+processClaimWithMap :: ContingentClaim -> Map.Map Double (U.Vector Double) -> U.Vector Double
+processClaimWithMap (ContingentClaim _ c obs) m = U.fromList $ map c vals
+    where vals = map (\(t , f) -> U.map f $ m Map.! t) obs
 
 vanillaPayout :: OptionType -> Double -> Double -> Double
 vanillaPayout pc strike x | pc == Put  = max (x-strike) 0
                           | otherwise  = max (strike-x) 0
 
 binaryPayout :: OptionType -> Double -> Double -> Double -> Double
-binaryPayout pc strike amount x | pc == Put  = if strike > x then amount else 0
-                                | otherwise  = if x > strike then amount else 0
+binaryPayout pc strike amount x = case pc of
+    Put  -> if strike > x then amount else 0
+    Call -> if x > strike then amount else 0
 
 terminalOnly :: Double -> (Double -> Double) -> ContingentClaim
 terminalOnly t f = ContingentClaim t U.head [(t, f)]
@@ -89,5 +132,32 @@ vanillaOption pc strike t = terminalOnly t $ vanillaPayout pc strike
 binaryOption :: OptionType -> Double -> Double -> Double -> ContingentClaim
 binaryOption pc strike amount t = terminalOnly t $ binaryPayout pc strike amount
 
-multiplier :: ContingentClaim -> Double -> ContingentClaim
-multiplier c@(ContingentClaim _ collFct _) notional = c { collector = \x -> notional * collFct x }
+multiplier :: Double -> ContingentClaim -> ContingentClaim
+multiplier notional c@(ContingentClaim _ collFct _) = c { collector = \x -> notional * collFct x }
+
+short :: ContingentClaim -> ContingentClaim
+short = multiplier (-1)
+
+spreadPayout :: OptionType -> Double -> Double -> Double -> Double
+spreadPayout pc lowStrike highStrike x = case pc of
+    Put  -> if x > highStrike then 0 else
+                if x < lowStrike then (highStrike - lowStrike) else
+                    highStrike - x
+    Call -> if x > highStrike then (highStrike-lowStrike) else
+                if x < lowStrike then 0 else
+                    x - lowStrike
+
+spreadOption :: OptionType -> Double -> Double -> Double -> ContingentClaim
+spreadOption pc lowStrike highStrike t = terminalOnly t $ spreadPayout pc lowStrike highStrike
+
+data ContingentClaimBasket = ContingentClaimBasket [ContingentClaim] [Double]
+
+ccBasket :: [ContingentClaim] -> ContingentClaimBasket
+ccBasket ccs = ContingentClaimBasket (sortBy (comparing payoutTime) ccs) monitorTimes
+    where monitorTimes = sort $ nub $ concat $ map (map fst . observations) ccs
+
+runSimulation1 :: (Discretize a (U.Vector Double), RandomSource Identity s) =>
+                        a -> [ContingentClaim] -> s -> Int -> Double
+runSimulation1 modl ccs seed trials = runMC run seed (U.empty, 0)
+    where
+        run = simulate1ObservableState modl (ccBasket ccs) trials
