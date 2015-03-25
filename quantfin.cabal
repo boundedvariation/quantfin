@@ -59,6 +59,7 @@ library
                        Quant.Models.Merton
                        Quant.Models.Dupire
                        Quant.MonteCarlo
+                       Quant.Test
   
   -- Modules included in this library but not exported.
   -- other-modules:       
@@ -72,7 +73,9 @@ library
                        mtl,
                        transformers,
                        random-fu,
-                       containers
+                       containers,
+                       rvar,
+                       mersenne-random-pure64
 
   -- Directories containing source files.
   hs-source-dirs:      src

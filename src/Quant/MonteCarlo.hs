@@ -7,10 +7,11 @@ module Quant.MonteCarlo (
     MonteCarlo
   , MonteCarloT
   , runMC 
+  --, runMCT
   , ContingentClaim(..)
   , Discretize(..)
   , simulate1ObservableState
-  , OptionType
+  , OptionType(..)
   , vanillaOption
   , binaryOption
   , spreadOption
@@ -18,6 +19,7 @@ module Quant.MonteCarlo (
   , short
   , runSimulation1
   , ccBasket
+  , quickSim1
   )
 where
 
@@ -26,7 +28,9 @@ import Control.Applicative
 import Control.Monad.State
 import Data.Functor.Identity
 import Data.List
+import Data.RVar
 import Data.Ord
+import System.Random.Mersenne.Pure64
 import qualified Data.Map as Map
 import qualified Data.Vector.Unboxed as U
 
@@ -34,12 +38,8 @@ type MonteCarloT m s = StateT s (RVarT m)
 
 type MonteCarlo s a = MonteCarloT Identity s a
 
-runMCT :: RandomSource m s => MonteCarloT m a b -> s -> a -> m b
-runMCT mc randState initState = runRVarT (evalStateT mc initState) randState
-
-runMC :: RandomSource Identity s => MonteCarloT Identity a1 a -> s -> a1 -> a
-runMC mc randState initState = runIdentity $ runMCT mc randState initState
-
+runMC :: MonadRandom (StateT b Identity) => MonteCarlo s c -> b -> s -> c
+runMC mc randState initState = flip evalState randState $ sampleRVarTWith lift $ (evalStateT mc initState)
 
 data ContingentClaim = ContingentClaim {
     payoutTime :: Double
@@ -156,8 +156,13 @@ ccBasket :: [ContingentClaim] -> ContingentClaimBasket
 ccBasket ccs = ContingentClaimBasket (sortBy (comparing payoutTime) ccs) monitorTimes
     where monitorTimes = sort $ nub $ concat $ map (map fst . observations) ccs
 
-runSimulation1 :: (Discretize a (U.Vector Double), RandomSource Identity s) =>
-                        a -> [ContingentClaim] -> s -> Int -> Double
+runSimulation1 :: (Discretize a (U.Vector Double),
+                         MonadRandom (StateT b Identity)) =>
+                        a -> [ContingentClaim] -> b -> Int -> Double
 runSimulation1 modl ccs seed trials = runMC run seed (U.empty, 0)
-    where
+   where
         run = simulate1ObservableState modl (ccBasket ccs) trials
+
+quickSim1 :: Discretize a (U.Vector Double) =>
+                   a -> [ContingentClaim] -> Int -> Double
+quickSim1 mdl opts trials = runSimulation1 mdl opts (pureMT 500) trials
