@@ -66,7 +66,11 @@ class Discretize a b where
 
     forwardGen :: Discretize a b => a -> Double -> Double -> MonteCarlo (b, ExternalState) (U.Vector Double)
 
-simulate1Observable :: Discretize a (U.Vector Double) => a -> ContingentClaim -> Int -> MonteCarlo ((U.Vector Double), ExternalState) (U.Vector Double)
+type SingleObservable a = MonteCarlo (U.Vector Double, ExternalState) a
+
+simulate1Observable :: Discretize a (U.Vector Double) => 
+    a -> ContingentClaim -> Int ->
+    SingleObservable (U.Vector Double)
 simulate1Observable modl (ContingentClaim tmat c obs) trials = do
   initialize modl trials
   obsFuncResults <- forM obs $ \(t, obfunc) -> do
