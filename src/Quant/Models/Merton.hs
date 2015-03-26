@@ -7,7 +7,6 @@ module Quant.Models.Merton (
 
 import Data.Random
 import Data.Random.Distribution.Poisson
-import Control.Applicative
 import Control.Monad.State
 import Quant.MonteCarlo
 import Quant.YieldCurve
@@ -36,7 +35,7 @@ data Merton = forall a b . (YieldCurve a, YieldCurve b) => Merton {
 instance Discretize Merton where
     initialize (Merton s _ _ _ _ _ _) trials = put (Observables [U.replicate trials s], 0)
 
-    evolve' m@(Merton _ vol intensity mu sig _ _) t2 = do
+    evolve' m@(Merton _ vol intensity mu sig _ _) t2 anti = do
         (Observables (stateVec:_), t1) <- get
         fwd <- forwardGen m t2
         let correction = exp (mu + sig*sig /2.0) - 1
@@ -47,14 +46,17 @@ instance Discretize Merton where
              poissonResid <- lift $ integralPoisson (intensity * (t2-t1)) :: MonteCarlo (Observables, Double) Int
              let  poisson' = fromIntegral poissonResid
                   jumpterm = mu*poisson'+sig*sqrt poisson' * normResid2
-             return $ x * exp (g + normResid1*vol + jumpterm)
+             if anti then
+                return $ x * exp (g - normResid1*vol + jumpterm)
+             else
+                return $ x * exp (g + normResid1*vol + jumpterm)
         put (Observables [postVal], t2)
 
     discounter (Merton _ _ _ _ _ _ dsc) t = do
-        size <- U.length <$> gets (obsPull . fst)
+        size <- getTrials
         return $ U.replicate size $ disc dsc t
 
     forwardGen (Merton _ _ _ _ _ fg _) t2 = do
-        size <- U.length <$> gets (obsPull . fst)
+        size <- getTrials
         t1 <- gets snd
         return $ U.replicate size $ forward fg t1 t2

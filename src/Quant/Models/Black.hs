@@ -9,9 +9,9 @@ module Quant.Models.Black (
 import Quant.YieldCurve
 import Data.Random
 import Quant.Models
-import Control.Applicative
 import Control.Monad.State
 import Quant.MonteCarlo
+import Debug.Trace
 import qualified Data.Vector.Unboxed as U
 
 {- | 'Black' represents a Black-Scholes
@@ -35,22 +35,25 @@ data Black = forall a b  . (YieldCurve a, YieldCurve b) => Black {
 instance Discretize Black where
     initialize (Black s _ _ _) trials = put (Observables [U.replicate trials s], 0)
 
-    evolve' b@(Black _ vol _ _) t2 = do
+    evolve' b@(Black _ vol _ _) t2 anti = do
         (Observables (stateVec:_), t1) <- get
         fwd <- forwardGen b t2
         let grwth = U.map (\x -> (x - vol*vol/2) * (t2-t1)) fwd
         postVal <- U.forM (U.zip grwth stateVec) $ \ ( g , x ) -> do
              resid <- lift stdNormal
-             return $ x * exp (g + resid*vol)
-        put (Observables [postVal], t2)
+             if anti then
+                return $ x * exp (g - resid*vol)
+             else
+                return $ x * exp (g + resid*vol)
+        put (Observables [(traceShow postVal postVal)], t2)
 
     discounter (Black _ _ _ dsc) t = do
-        size <- U.length <$> gets (obsPull . fst)
+        size <- getTrials
         return $ U.replicate size $ disc dsc t
 
     forwardGen (Black _ _ fg _) t2 = do
-        size <- U.length <$> gets (obsPull . fst)
+        size <- getTrials
         t1 <- gets snd
         return $ U.replicate size $ forward fg t1 t2
 
-    minStep _ = 100
+    maxStep _ = 100
