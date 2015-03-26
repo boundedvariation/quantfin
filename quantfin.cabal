@@ -58,6 +58,7 @@ library
                        Quant.Models.Black
                        Quant.Models.Merton
                        Quant.Models.Dupire
+                       Quant.Models.Heston
                        Quant.MonteCarlo
                        Quant.Test
   
