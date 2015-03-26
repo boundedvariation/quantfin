@@ -11,7 +11,6 @@ import Data.Random
 import Quant.Models
 import Control.Monad.State
 import Quant.MonteCarlo
-import Debug.Trace
 import qualified Data.Vector.Unboxed as U
 
 {- | 'Black' represents a Black-Scholes
