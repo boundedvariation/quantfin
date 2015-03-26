@@ -18,6 +18,8 @@ module Quant.ContingentClaim (
   , short
   , combine
   , terminalOnly
+  , changeObservableFct
+  , obsNum
   , obsHead
         )  where
 
@@ -61,16 +63,15 @@ binaryOption pc strike amount t = terminalOnly t $ binaryPayout pc strike amount
 arithmeticAsianOption :: OptionType -> Double -> [Double] -> Double -> ContingentClaim
 arithmeticAsianOption pc strike obsTimes t = [ContingentClaim' t f obs]
     where obs = map (\x -> (x, obsHead, id)) obsTimes
-          f k = U.map (vanillaPayout pc strike)
-              . foldl' (U.zipWith (+)) (U.replicate l 0) 
-              $ map (U.map (/ fromIntegral l)) k
+          f k = U.map (vanillaPayout pc strike . (/fromIntegral l))
+              $ foldl1' (U.zipWith (+)) k
             where l = length k
 
 geometricAsianOption :: OptionType -> Double -> [Double] -> Double -> ContingentClaim
 geometricAsianOption pc strike obsTimes t = [ContingentClaim' t f obs]
     where obs = map (\x -> (x, obsHead, id)) obsTimes
           f k = U.map (vanillaPayout pc strike . (** (1/fromIntegral l)))
-              $ foldl' (U.zipWith (*)) (U.replicate l 0) k
+              $ foldl1' (U.zipWith (*)) k
             where l = length k
 
 multiplier :: Double -> ContingentClaim -> ContingentClaim
@@ -93,7 +94,7 @@ putSpread :: Double -> Double -> Double -> ContingentClaim
 putSpread lowStrike highStrike t = combine (vanillaOption Put highStrike t) (short $ vanillaOption Put lowStrike t)
 
 straddle :: Double -> Double -> ContingentClaim
-straddle strike t = combine (vanillaOption Put strike t) (vanillaOption Call strike t)
+straddle strike t = vanillaOption Put strike t ++ vanillaOption Call strike t
 
 combine :: ContingentClaim -> ContingentClaim -> ContingentClaim
 combine = (++)
@@ -107,5 +108,14 @@ ccBasket ccs = ContingentClaimBasket (sortBy (comparing payoutTime) ccs) monitor
 obsHead :: Observables -> U.Vector Double
 obsHead (Observables (x:_)) = x
 
+changeObservableFct' :: ContingentClaim' -> (Observables -> U.Vector Double) -> ContingentClaim'
+changeObservableFct' c@(ContingentClaim' _ _ calcs) f = c { observations = map (\(t, _, g) -> (t, f, g)) calcs }
+
+changeObservableFct :: ContingentClaim -> (Observables -> U.Vector Double) -> ContingentClaim
+changeObservableFct ccs f = map (`changeObservableFct'` f) ccs
+
 fst3 :: (a,b,c) -> a
 fst3 (x, _, _) = x
+
+obsNum :: ContingentClaim -> Int -> ContingentClaim
+obsNum ccs k = changeObservableFct ccs ((!! k) . ( \(Observables x)-> x))
