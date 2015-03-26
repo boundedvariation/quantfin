@@ -7,6 +7,7 @@ module Quant.Models.Dupire (
 
 import Data.Random
 import Control.Monad.State
+import Quant.ContingentClaim
 import Quant.MonteCarlo
 import Quant.YieldCurve
 import qualified Data.Vector.Unboxed as U

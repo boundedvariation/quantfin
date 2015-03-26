@@ -60,6 +60,7 @@ library
                        Quant.Models.Dupire
                        Quant.Models.Heston
                        Quant.MonteCarlo
+                       Quant.ContingentClaim
                        Quant.Test
   
   -- Modules included in this library but not exported.

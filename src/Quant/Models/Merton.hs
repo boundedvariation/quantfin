@@ -9,6 +9,7 @@ import Data.Random
 import Data.Random.Distribution.Poisson
 import Control.Monad.State
 import Quant.MonteCarlo
+import Quant.ContingentClaim
 import Quant.YieldCurve
 import qualified Data.Vector.Unboxed as U
 
