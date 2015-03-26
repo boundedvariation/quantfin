@@ -9,7 +9,6 @@ module Quant.MonteCarlo (
   , ContingentClaim(..)
   , ContingentClaimBasket(..)
   , Discretize(..)
-  , simulate1ObservableState
   , OptionType(..)
   , vanillaOption
   , binaryOption
@@ -17,12 +16,11 @@ module Quant.MonteCarlo (
   , multiplier
   , short
   , forwardContract
-  , runSimulation1
   , ccBasket
-  , quickSim1
   , processClaimWithMap
   , Observables(..)
-  , obsPull
+  , obsHead
+  , getTrials
   )
 where
 
@@ -47,8 +45,10 @@ runMC mc randState initState = flip evalState randState $ sampleRVarTWith lift (
 
 data ContingentClaim = ContingentClaim {
     payoutTime   :: Double
-  , collector    :: U.Vector Double -> Double
-  , observations :: [(Double, Double -> Double)]
+  , collector    :: [U.Vector Double] -> U.Vector Double
+  , observations :: [( Double                          --time of observation
+                     , Observables  -> U.Vector Double --Observables puller
+                     , Double       -> Double) ]       --Function to run
 }
 
 data OptionType = Put | Call deriving (Eq,Show)
@@ -63,76 +63,91 @@ Minimal complete definition: 'initialize', 'discounter', 'forwardGen' and 'evolv
 data Observables = Observables [U.Vector Double] deriving (Eq, Show)
 
 class Discretize a where
-    -- | Represents the internal state of the function.
 
     -- | Initializes a Monte Carlo simulation for a given number of runs.
     initialize :: Discretize a => a -> Int -> MonteCarlo (Observables, Double) ()
 
     -- | Evolves the internal states of the MC variables between two times.
     -- | First variable is t0, second is t1
-    evolve :: Discretize a => a -> Double -> MonteCarlo (Observables, Double) ()
-    evolve mdl t2 = do
+    evolve :: Discretize a => a -> Double -> Bool -> MonteCarlo (Observables, Double) ()
+    evolve mdl t2 anti = do
         (_, t1) <- get
-        let ms = minStep mdl
+        let ms = maxStep mdl
         if (t2-t1) < ms then 
-            evolve' mdl t2
+            evolve' mdl t2 anti
         else do
-            evolve' mdl (t1 + ms)
-            evolve mdl t2
+            evolve' mdl (t1 + ms) anti
+            evolve mdl t2 anti
 
     discounter :: Discretize a => a -> Double -> MonteCarlo (Observables, Double) (U.Vector Double)
 
     forwardGen :: Discretize a => a -> Double -> MonteCarlo (Observables, Double) (U.Vector Double)
 
-    evolve' :: Discretize a => a -> Double -> MonteCarlo (Observables, Double) ()
+    evolve' :: Discretize a => a -> Double -> Bool -> MonteCarlo (Observables, Double) ()
 
-    minStep :: Discretize a => a -> Double --need to think of a way to get the b out with introducing a mess.
-    minStep _ = 1/250
+    maxStep :: Discretize a => a -> Double --need to think of a way to get the b out with introducing a mess.
+    maxStep _ = 1/250
+
+    simulateState :: Discretize a => 
+        a -> ContingentClaimBasket -> Int -> Bool ->
+        MonteCarlo (Observables, Double) Double
+    simulateState modl (ContingentClaimBasket cs ts) trials anti = do
+        initialize modl trials
+        avg <$> process Map.empty (U.replicate trials 0) cs ts
+            where 
+                process m cfs ccs@(c@(ContingentClaim t _ _):cs') (obsT:ts') = do
+                    obs <- gets fst
+                    if t > obsT then do
+                        evolve modl obsT anti
+                        let m' = Map.insert obsT obs m
+                        process m' cfs ccs ts'
+                    else 
+                        if obsT == t then do
+                            evolve modl obsT anti
+                            let m' = Map.insert obsT obs m
+                            process m' cfs ccs ts'
+                        else do
+                            evolve modl t anti
+                            let cfs' = processClaimWithMap c m
+                            d <- discounter modl obsT
+                            let cfs'' = cfs' |*| d
+                            process m (cfs |+| cfs'') cs' (obsT:ts')
+
+                process m cfs (c:cs') [] = do
+                    d <- discounter modl (payoutTime c)
+                    let cfs' = d |*| processClaimWithMap c m
+                    process m (cfs |+| cfs') cs' []
+
+                process _ cfs _ _ = return cfs
+
+                v1 |+| v2 = U.zipWith (+) v1 v2
+                v1 |*| v2 = U.zipWith (*) v1 v2
+
+                avg v = U.sum v / fromIntegral (U.length v)
+
+    runSimulation :: (Discretize a,
+                             MonadRandom (StateT b Identity)) =>
+                            a -> [ContingentClaim] -> b -> Int -> Bool -> Double
+    runSimulation modl ccs seed trials anti = runMC run seed (Observables [], 0)
+       where
+            run = simulateState modl (ccBasket ccs) trials anti
+
+    quickSim :: Discretize a => a -> [ContingentClaim] -> Int -> Double
+    quickSim mdl opts trials = runSimulation mdl opts (pureMT 500) trials False
 
 
-simulate1ObservableState :: Discretize a => 
-    a -> ContingentClaimBasket -> Int ->
-    MonteCarlo (Observables, Double) Double
-simulate1ObservableState modl (ContingentClaimBasket cs ts) trials = do
-    initialize modl trials
-    avg <$> process Map.empty (U.replicate trials 0) cs ts
-        where 
-            process m cfs ccs@(c@(ContingentClaim t _ _):cs') (obsT:ts') = do
-                Observables (vals:_) <- gets fst
-                if t > obsT then do
-                    evolve modl obsT
-                    let m' = Map.insert obsT vals m
-                    process m' cfs ccs ts'
-                else 
-                    if obsT == t then do
-                        evolve modl obsT
-                        let m' = Map.insert obsT vals m
-                            cfs' = processClaimWithMap c m'
-                        d <- discounter modl obsT
-                        let cfs'' = cfs' |*| d
-                        process m' (cfs |+| cfs'') cs' ts'
-                    else do
-                        evolve modl t
-                        let cfs' = processClaimWithMap c m
-                        d <- discounter modl obsT
-                        let cfs'' = cfs' |*| d
-                        process m (cfs |+| cfs'') cs' (obsT:ts')
+getTrials :: MonteCarlo (Observables, Double) Int
+getTrials = U.length <$> gets (obsHead . fst)
 
-            process m cfs (c:cs') [] = do
-                d <- discounter modl (payoutTime c)
-                let cfs' = d |*| processClaimWithMap c m
-                process m (cfs |+| cfs') cs' []
+--processClaimWithMap :: ContingentClaim -> Map.Map Double Observables -> U.Vector Double
+--processClaimWithMap (ContingentClaim _ c obs) m = U.fromList $ map c vals
+ --   where vals = map (\(t , g , f) -> U.map f . g $ m Map.! t) obs
 
-            process _ cfs _ _ = return cfs
+processClaimWithMap :: ContingentClaim -> Map.Map Double Observables -> U.Vector Double
+processClaimWithMap (ContingentClaim _ c obs) m = c vals
+    where 
+        vals = map (\(t , g , f) -> U.map f . g $ m Map.! t) obs
 
-            v1 |+| v2 = U.zipWith (+) v1 v2
-            v1 |*| v2 = U.zipWith (*) v1 v2
-
-            avg v = U.sum v / fromIntegral (U.length v)
-
-processClaimWithMap :: ContingentClaim -> Map.Map Double (U.Vector Double) -> U.Vector Double
-processClaimWithMap (ContingentClaim _ c obs) m = U.fromList $ map c vals
-    where vals = map (\(t , f) -> U.map f $ m Map.! t) obs
 
 vanillaPayout :: OptionType -> Double -> Double -> Double
 vanillaPayout pc strike x = case pc of
@@ -145,7 +160,7 @@ binaryPayout pc strike amount x = case pc of
     Call -> if x > strike then amount else 0
 
 terminalOnly :: Double -> (Double -> Double) -> ContingentClaim
-terminalOnly t f = ContingentClaim t U.head [(t, f)]
+terminalOnly t f = ContingentClaim t head [(t, obsHead, f)]
 
 vanillaOption :: OptionType -> Double -> Double -> ContingentClaim
 vanillaOption pc strike t = terminalOnly t $ vanillaPayout pc strike
@@ -154,7 +169,7 @@ binaryOption :: OptionType -> Double -> Double -> Double -> ContingentClaim
 binaryOption pc strike amount t = terminalOnly t $ binaryPayout pc strike amount
 
 multiplier :: Double -> ContingentClaim -> ContingentClaim
-multiplier notional c@(ContingentClaim _ collFct _) = c { collector = \x -> notional * collFct x }
+multiplier notional c@(ContingentClaim _ collFct _) = c { collector = U.map (*notional) . collFct }
 
 short :: ContingentClaim -> ContingentClaim
 short = multiplier (-1)
@@ -178,17 +193,10 @@ data ContingentClaimBasket = ContingentClaimBasket [ContingentClaim] [Double]
 
 ccBasket :: [ContingentClaim] -> ContingentClaimBasket
 ccBasket ccs = ContingentClaimBasket (sortBy (comparing payoutTime) ccs) monitorTimes
-    where monitorTimes = sort $ nub $ concatMap (map fst . observations) ccs
+    where monitorTimes = sort . nub $ concatMap (map fst3 . observations) ccs
 
-runSimulation1 :: (Discretize a,
-                         MonadRandom (StateT b Identity)) =>
-                        a -> [ContingentClaim] -> b -> Int -> Double
-runSimulation1 modl ccs seed trials = runMC run seed (Observables [U.empty], 0)
-   where
-        run = simulate1ObservableState modl (ccBasket ccs) trials
+obsHead :: Observables -> U.Vector Double
+obsHead (Observables (x:_)) = x
 
-quickSim1 :: Discretize a => a -> [ContingentClaim] -> Int -> Double
-quickSim1 mdl opts trials = runSimulation1 mdl opts (pureMT 500) trials
-
-obsPull :: Observables -> U.Vector Double
-obsPull (Observables (x:_)) = x
+fst3 :: (a,b,c) -> a
+fst3 (x, _, _) = x

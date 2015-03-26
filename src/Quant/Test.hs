@@ -12,8 +12,8 @@ import Quant.Models.Black
 
 baseYC = FlatCurve 0.05
 
-black = Black 100 0.0 baseYC baseYC
+black = Black 100 0.2 baseYC baseYC
 
-opt = vanillaOption Call 100 1.0
+opt = forwardContract 1
 
-val = quickSim1 black [opt] 1
+val = quickSim black [opt] 1000
