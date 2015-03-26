@@ -31,7 +31,6 @@ import Data.Functor.Identity
 import Data.List
 import Data.RVar
 import Data.Ord
-import Debug.Trace
 import System.Random.Mersenne.Pure64
 import qualified Data.Map as Map
 import qualified Data.Vector.Unboxed as U
@@ -140,9 +139,6 @@ class Discretize a where
 getTrials :: MonteCarlo (Observables, Double) Int
 getTrials = U.length <$> gets (obsHead . fst)
 
---processClaimWithMap :: ContingentClaim -> Map.Map Double Observables -> U.Vector Double
---processClaimWithMap (ContingentClaim _ c obs) m = U.fromList $ map c vals
- --   where vals = map (\(t , g , f) -> U.map f . g $ m Map.! t) obs
 
 processClaimWithMap :: ContingentClaim -> Map.Map Double Observables -> U.Vector Double
 processClaimWithMap (ContingentClaim _ c obs) m = c vals
