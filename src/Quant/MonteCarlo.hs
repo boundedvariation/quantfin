@@ -96,14 +96,15 @@ class Discretize a where
         avg <$> process Map.empty (U.replicate trials 0) cs ts
             where 
                 process m cfs ccs@(c@(ContingentClaim t _ _):cs') (obsT:ts') = do
-                    obs <- gets fst
                     if t > obsT then do
                         evolve modl obsT anti
+                        obs <- gets fst
                         let m' = Map.insert obsT obs m
                         process m' cfs ccs ts'
                     else 
                         if obsT == t then do
                             evolve modl obsT anti
+                            obs <- gets fst
                             let m' = Map.insert obsT obs m
                             process m' cfs ccs ts'
                         else do
