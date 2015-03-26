@@ -1,5 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 
@@ -18,10 +16,13 @@ module Quant.MonteCarlo (
   , spreadOption
   , multiplier
   , short
+  , forwardContract
   , runSimulation1
   , ccBasket
   , quickSim1
   , processClaimWithMap
+  , Observables(..)
+  , obsPull
   )
 where
 
@@ -45,8 +46,8 @@ runMC :: MonadRandom (StateT b Identity) => MonteCarlo s c -> b -> s -> c
 runMC mc randState initState = flip evalState randState $ sampleRVarTWith lift (evalStateT mc initState)
 
 data ContingentClaim = ContingentClaim {
-    payoutTime :: Double
-  , collector :: U.Vector Double -> Double
+    payoutTime   :: Double
+  , collector    :: U.Vector Double -> Double
   , observations :: [(Double, Double -> Double)]
 }
 
@@ -58,43 +59,46 @@ can be performed.
 
 Minimal complete definition: 'initialize', 'discounter', 'forwardGen' and 'evolve'.
 -}
-class Discretize a b where
+
+data Observables = Observables [U.Vector Double] deriving (Eq, Show)
+
+class Discretize a where
     -- | Represents the internal state of the function.
 
     -- | Initializes a Monte Carlo simulation for a given number of runs.
-    initialize :: Discretize a b => a -> Int -> MonteCarlo (b, Double) ()
+    initialize :: Discretize a => a -> Int -> MonteCarlo (Observables, Double) ()
 
     -- | Evolves the internal states of the MC variables between two times.
     -- | First variable is t0, second is t1
-    evolve :: Discretize a b => a -> Double -> MonteCarlo (b, Double) ()
+    evolve :: Discretize a => a -> Double -> MonteCarlo (Observables, Double) ()
     evolve mdl t2 = do
-        (b, t1) <- get
-        let ms = minStep mdl b --Ugh, I know.
+        (_, t1) <- get
+        let ms = minStep mdl
         if (t2-t1) < ms then 
             evolve' mdl t2
         else do
             evolve' mdl (t1 + ms)
             evolve mdl t2
 
-    discounter :: Discretize a b => a -> Double -> MonteCarlo (b, Double) (U.Vector Double)
+    discounter :: Discretize a => a -> Double -> MonteCarlo (Observables, Double) (U.Vector Double)
 
-    forwardGen :: Discretize a b => a -> Double -> MonteCarlo (b, Double) (U.Vector Double)
+    forwardGen :: Discretize a => a -> Double -> MonteCarlo (Observables, Double) (U.Vector Double)
 
-    evolve' :: Discretize a b => a -> Double -> MonteCarlo (b, Double) ()
+    evolve' :: Discretize a => a -> Double -> MonteCarlo (Observables, Double) ()
 
-    minStep :: Discretize a b => a -> b -> Double --need to think of a way to get the b out with introducing a mess.
-    minStep _ _ = 1/250
+    minStep :: Discretize a => a -> Double --need to think of a way to get the b out with introducing a mess.
+    minStep _ = 1/250
 
 
-simulate1ObservableState :: Discretize a (U.Vector Double) => 
+simulate1ObservableState :: Discretize a => 
     a -> ContingentClaimBasket -> Int ->
-    MonteCarlo (U.Vector Double, Double) Double
+    MonteCarlo (Observables, Double) Double
 simulate1ObservableState modl (ContingentClaimBasket cs ts) trials = do
     initialize modl trials
     avg <$> process Map.empty (U.replicate trials 0) cs ts
         where 
             process m cfs ccs@(c@(ContingentClaim t _ _):cs') (obsT:ts') = do
-                vals <- gets fst
+                Observables (vals:_) <- gets fst
                 if t > obsT then do
                     evolve modl obsT
                     let m' = Map.insert obsT vals m
@@ -155,6 +159,9 @@ multiplier notional c@(ContingentClaim _ collFct _) = c { collector = \x -> noti
 short :: ContingentClaim -> ContingentClaim
 short = multiplier (-1)
 
+forwardContract :: Double -> ContingentClaim
+forwardContract t = terminalOnly t id
+
 spreadPayout :: OptionType -> Double -> Double -> Double -> Double
 spreadPayout pc lowStrike highStrike x = case pc of
     Put  | x > highStrike -> 0
@@ -173,13 +180,15 @@ ccBasket :: [ContingentClaim] -> ContingentClaimBasket
 ccBasket ccs = ContingentClaimBasket (sortBy (comparing payoutTime) ccs) monitorTimes
     where monitorTimes = sort $ nub $ concatMap (map fst . observations) ccs
 
-runSimulation1 :: (Discretize a (U.Vector Double),
+runSimulation1 :: (Discretize a,
                          MonadRandom (StateT b Identity)) =>
                         a -> [ContingentClaim] -> b -> Int -> Double
-runSimulation1 modl ccs seed trials = runMC run seed (U.empty, 0)
+runSimulation1 modl ccs seed trials = runMC run seed (Observables [U.empty], 0)
    where
         run = simulate1ObservableState modl (ccBasket ccs) trials
 
-quickSim1 :: Discretize a (U.Vector Double) =>
-                   a -> [ContingentClaim] -> Int -> Double
+quickSim1 :: Discretize a => a -> [ContingentClaim] -> Int -> Double
 quickSim1 mdl opts trials = runSimulation1 mdl opts (pureMT 500) trials
+
+obsPull :: Observables -> U.Vector Double
+obsPull (Observables (x:_)) = x

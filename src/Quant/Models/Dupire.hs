@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
 module Quant.Models.Dupire (
@@ -24,24 +23,24 @@ data Dupire = forall a b . (YieldCurve a, YieldCurve b) => Dupire {
 
 --mkDupire s vs fg dsc = 
 
-instance Discretize Dupire (U.Vector Double) where
-    initialize (Dupire s _ _ _) trials = put (U.replicate trials s, 0)
+instance Discretize Dupire where
+    initialize (Dupire s _ _ _) trials = put (Observables [U.replicate trials s], 0)
 
     evolve' d@(Dupire _ f _ _) t2 = do
-        (stateVec, t1) <- get
+        (Observables (stateVec:_), t1) <- get
         fwd <- forwardGen d t2
         let vols   = U.map (f t1) stateVec
             grwth = U.map (\(fwdVal, v) -> (fwdVal - v * v / 2) / (t2-t1)) $ U.zip fwd vols
         postVal <- U.forM (U.zip3 grwth stateVec vols) $ \ ( g,x,v ) -> do
              normResid <- lift stdNormal
              return $ x * exp (g + normResid*v)
-        put (postVal, t2)
+        put (Observables [postVal], t2)
 
     discounter (Dupire _ _ _ dsc) t = do
-        size <- U.length <$> gets fst
+        size <- U.length <$> gets (obsPull . fst)
         return $ U.replicate size $ disc dsc t
 
     forwardGen (Dupire _ _ fg _) t2 = do
         t1 <- gets snd
-        size <- U.length <$> gets fst
+        size <- U.length <$> gets (obsPull . fst)
         return $ U.replicate size $ forward fg t1 t2
