@@ -45,7 +45,7 @@ instance Discretize Black where
                 return $ x * exp (g - resid*vol)
              else
                 return $ x * exp (g + resid*vol)
-        put (Observables [(traceShow postVal postVal)], t2)
+        put (Observables [postVal], t2)
 
     discounter (Black _ _ _ dsc) t = do
         size <- getTrials
