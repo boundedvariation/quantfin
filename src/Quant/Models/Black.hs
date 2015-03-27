@@ -14,14 +14,12 @@ import Quant.MonteCarlo
 import Quant.ContingentClaim
 import qualified Data.Vector.Unboxed as U
 
-{- | 'Black' represents a Black-Scholes
-model with a yield curve for a 
--}
+-- | 'Black' represents a Black-Scholes model.
 data Black = forall a b  . (YieldCurve a, YieldCurve b) => Black {
-    blackInit       :: Double
-  , blackVol        :: Double
-  , blackForwardGen :: a
-  , blackYieldCurve :: b }
+    blackInit       :: Double -- ^ Initial asset level.
+  , blackVol        :: Double -- ^ Volatility.
+  , blackForwardGen :: a      -- ^ 'YieldCurve' to generate forwards
+  , blackYieldCurve :: b }    -- ^ 'YieldCurve' to handle discounting
 
 --instance CharFunc Black where
   --  charFunc (Black s vol _ _) t k = exp 

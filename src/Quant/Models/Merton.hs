@@ -13,17 +13,15 @@ import Quant.ContingentClaim
 import Quant.YieldCurve
 import qualified Data.Vector.Unboxed as U
 
-{- | 'Merton' represents a Merton model (Black-Scholes w/ jumps).
-
--}
+-- | 'Merton' represents a Merton model (Black-Scholes w/ jumps).
 data Merton = forall a b . (YieldCurve a, YieldCurve b) => Merton {
-   mertonInitial     ::  Double
- , mertonVol         ::  Double
- , mertonIntensity   ::  Double
- , mertonJumpMean    ::  Double
- , mertonJumpVol     ::  Double 
- , mertonForwardGen  ::  a 
- , mertonDiscounter  ::  b } 
+   mertonInitial     ::  Double -- ^ Initial asset level
+ , mertonVol         ::  Double -- ^ Asset volatility
+ , mertonIntensity   ::  Double -- ^ Intensity of Poisson process
+ , mertonJumpMean    ::  Double -- ^ Average size of jump
+ , mertonJumpVol     ::  Double -- ^ Volatility of jumps
+ , mertonForwardGen  ::  a      -- ^ 'YieldCurve' to generate forwards
+ , mertonDiscounter  ::  b }    -- ^ 'YieldCurve' to generate discount rates
 
 --instance CharFunc Merton where
   --  charFunc (Merton s vol intensity mu sig fg) t k = charFunc (Black s vol fg) t k * addon

@@ -12,16 +12,12 @@ import Quant.MonteCarlo
 import Quant.YieldCurve
 import qualified Data.Vector.Unboxed as U
 
-{- | 'Dupire' represents a Dupire-style local vol model.
-
--}
+-- | 'Dupire' represents a Dupire-style local vol model.
 data Dupire = forall a b . (YieldCurve a, YieldCurve b) => Dupire {
-   dupireInitial     ::  Double
- , dupireFunc        ::  Double -> Double -> Double
- , mertonForwardGen  ::  a 
- , mertonDiscounter  ::  b } 
-
---mkDupire s vs fg dsc = 
+   dupireInitial     ::  Double -- ^ Initial asset level
+ , dupireFunc        ::  Double -> Double -> Double -- ^ Local vol function taking a time to maturity and a level
+ , mertonForwardGen  ::  a  -- ^ 'YieldCurve' to generate forwards
+ , mertonDiscounter  ::  b } -- ^ 'YieldCurve' to generate discount rates
 
 instance Discretize Dupire where
     initialize (Dupire s _ _ _) trials = put (Observables [U.replicate trials s], 0)

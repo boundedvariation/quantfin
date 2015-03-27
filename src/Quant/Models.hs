@@ -1,12 +1,7 @@
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE RankNTypes #-}
-
 module Quant.Models (
-    Discretize (..)
-  , CharFunc(..)
+    CharFunc(..)
 ) where
 
-import Quant.MonteCarlo
 import Data.Complex
 import Quant.YieldCurve
 
@@ -16,6 +11,8 @@ models which have closed-form characteristic
 functions.
 
 Minimal complete definition: 'charFunc'.
+
+Still under construction.
 -}
 class CharFunc a where
     -- | Creates a characteristic function for a model, without martingale adjustment.

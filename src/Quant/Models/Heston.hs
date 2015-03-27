@@ -14,18 +14,16 @@ import Quant.MonteCarlo
 import Quant.ContingentClaim
 import qualified Data.Vector.Unboxed as U
 
-{- | 'Heston' represents a Heston model (i.e. stochastic volatility)
-model with a yield curve for a 
--}
+-- | 'Heston' represents a Heston model (i.e. stochastic volatility).
 data Heston = forall a b  . (YieldCurve a, YieldCurve b) => Heston {
-    hestonInit       :: Double
-  , hestonV0         :: Double
-  , hestonVF         :: Double
-  , hestonLambda     :: Double
-  , hestonCorrel     :: Double
-  , hestonMeanRev    :: Double
-  , hestonForwardGen :: a
-  , hestonDisc       :: b }
+    hestonInit       :: Double  -- ^ Initial asset level.
+  , hestonV0         :: Double  -- ^ Initial variance
+  , hestonVF         :: Double  -- ^ Mean-reversion variance
+  , hestonLambda     :: Double  -- ^ Vol-vol
+  , hestonCorrel     :: Double  -- ^ Correlation between processes
+  , hestonMeanRev    :: Double  -- ^ Mean reversion speed
+  , hestonForwardGen :: a       -- ^ 'YieldCurve' to generate forwards
+  , hestonDisc       :: b }     -- ^ 'YieldCurve' to generate discounts
 
 instance Discretize Heston where
     initialize (Heston s v0 _ _ _ _ _ _) trials = put (Observables [U.replicate trials s,
