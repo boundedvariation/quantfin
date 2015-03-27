@@ -8,7 +8,6 @@ module Quant.Models.Black (
 
 import Quant.YieldCurve
 import Data.Random
-import Quant.Models
 import Control.Monad.State
 import Quant.MonteCarlo
 import Quant.ContingentClaim
