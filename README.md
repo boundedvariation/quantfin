@@ -9,6 +9,7 @@ import Quant.MonteCarlo
 import Quant.YieldCurve
 import Quant.ContingentClaim
 import Quant.Models.Black
+import Quant.Models.Heston
 
 baseYC = FlatCurve 0.05 --create a flat yield curve with a 5% rate
 
