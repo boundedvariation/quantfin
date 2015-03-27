@@ -118,4 +118,4 @@ fst3 :: (a,b,c) -> a
 fst3 (x, _, _) = x
 
 obsNum :: ContingentClaim -> Int -> ContingentClaim
-obsNum ccs k = changeObservableFct ccs ((!! k) . ( \(Observables x)-> x))
+obsNum ccs k = changeObservableFct ccs $ \(Observables x)-> x !! k
