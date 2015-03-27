@@ -1,7 +1,7 @@
 module Quant.YieldCurve (
     YieldCurve (..)
  ,  FlatCurve (..)
- ,  NetYC
+ ,  NetYC (..)
 ) where
 
 
