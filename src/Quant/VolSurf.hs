@@ -50,8 +50,7 @@ class VolSurf a where
                             _ -> (var v (strikept/s0) (t+dt)-var v (strikemt/s0) (t-dt))/2.0/dt                       
                 solution = dwdt/(1.0-y/w*dwdy+0.25*(-0.25-1.0/w+y*y/w/w)*dwdy*dwdy+0.5*d2wdy2)
 
--- |A flat curve is just a flat curve with one continuously 
--- compounded rate at all points on the curve.
+-- |A flat surface has one volatility at all times/maturities.
 data FlatSurf = FlatSurf Double
 
 instance VolSurf FlatSurf where
