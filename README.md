@@ -18,20 +18,24 @@ black = Black
 			baseYC  --forward generator
 			baseYC  --discount function
 
-opt = vanillaOption Put 100 1 --make a vanilla put, struck at 100, maturing at time 1
+--make a vanilla put, struck at 100, maturing at time 1
+opt = vanillaOption Put 100 1 
 
-val = quickSim black opt 10000 --Run a Monte Carlo on opt in a a black model with 10000 trials
-							   --Returns 5.448
+--Run a Monte Carlo on opt in a a black model with 10000 trials
+--Returns 5.448
+val = quickSim black opt 10000 
 
+--Make a call spread with a 100 unit notional
 opt' = multiplier 100 
-	$ vanillaOption Call 100 1 ++ short (vanillaOption Call 120 1) --Make a call spread with a 100 unit notional
+	$ vanillaOption Call 100 1 ++ short (vanillaOption Call 120 1)
 
-val' = quickSimAnti black opt' 10000 --Run a Monte Carlo on the call spread; use antithetic variates
+ --Run a Monte Carlo on the call spread; use antithetic variates
+val' = quickSimAnti black opt' 10000
 
 black' = Black 
 			100     --initial stock price
 			0.2     --volatility
-			(NetYC (FlatCurve 0.05) (FlatCurve 0.02))  --forward generator, now with a 2% dividend yield
+			(NetYC (FlatCurve 0.05) (FlatCurve 0.02))  --Now with a 2% div yield
 			baseYC  --discount rate
 
 val'' = quickSimAnti black opt' 10000
