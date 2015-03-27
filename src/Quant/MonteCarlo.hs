@@ -105,9 +105,17 @@ class Discretize a where
        where
             run = simulateState modl (ccBasket ccs) trials anti
 
+    runSimulationAnti :: (Discretize a,
+                             MonadRandom (StateT b Identity)) =>
+                            a -> ContingentClaim -> b -> Int -> Double
+    runSimulationAnti modl ccs seed trials = (runSim True + runSim False) / 2
+        where runSim = runSimulation modl ccs seed (trials `div` 2)
+
     quickSim :: Discretize a => a -> ContingentClaim -> Int -> Double
     quickSim mdl opts trials = runSimulation mdl opts (pureMT 500) trials False
 
+    quickSimAnti :: Discretize a => a -> ContingentClaim -> Int -> Double
+    quickSimAnti mdl opts trials = runSimulationAnti mdl opts (pureMT 500) trials
 
 getTrials :: MonteCarlo (Observables, Double) Int
 getTrials = U.length <$> gets (obsHead . fst)
