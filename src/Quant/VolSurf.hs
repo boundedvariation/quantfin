@@ -35,7 +35,8 @@ class VolSurf a where
                 f = s0/dr
                 y = log $ k/f
                 dy = 1.0E-6
-                [kp, km] = [k*exp dy, k/exp dy]
+                kp = k*exp dy
+                km = k/exp dy
                 [w, wp, wm] = map (\x->var v (x/s0) t) [k, kp, km]
                 dwdy = (wp-wm)/2.0/dy
                 d2wdy2 = (wp-2.0*w+wm)/dy/dy

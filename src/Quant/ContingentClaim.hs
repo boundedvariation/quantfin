@@ -53,7 +53,7 @@ type ContingentClaim = [ContingentClaim']
 --complex ones will have multiple (i.e. Heston-Hull-White).
 data Observables = Observables [U.Vector Double] deriving (Eq, Show)
 
--- | ADT for Put or Calls
+-- | Type for Put or Calls
 data OptionType = Put | Call deriving (Eq,Show)
 
 -- | Function to generate a vanilla put/call style payout.
