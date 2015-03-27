@@ -36,10 +36,13 @@ import qualified Data.Vector.Unboxed as U
 -- | 'ContingentClaim'' is the underlying type of contingent claims.
 data ContingentClaim' = ContingentClaim' {
     payoutTime   :: Double                               -- ^ Payout time for cash flow
-  , collector    :: [U.Vector Double] -> U.Vector Double -- ^ Function to collect observations and transform them into a cash flow.
-  , observations :: [( Double                            -- ^ Time of observation
-                     , Observables  -> U.Vector Double   -- ^ Function to access specific observable.
-                     , Double       -> Double) ]         -- ^ Function to run to transform observations.
+  , collector    :: [U.Vector Double] -> U.Vector Double 
+  , observations :: [( Double                            
+                     , Observables  -> U.Vector Double   
+                     , Double       -> Double) ]         -- ^ List containing:
+                                                         --Time of observation
+                                                         --Function to access specific observable.
+                                                         --Function to collect observations and transform them into a cash flow
 }
 
 -- | 'ContingentClaim' is just a list of the underlying 'ContingentClaim''s.
