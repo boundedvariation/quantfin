@@ -18,7 +18,6 @@ module Quant.MonteCarlo (
 where
 
 import Quant.ContingentClaim
-import Quant.MCTypes
 import Pipes
 import Data.Random
 import Control.Applicative
@@ -29,6 +28,21 @@ import System.Random.Mersenne.Pure64
 import qualified Data.Map as Map
 import qualified Data.Vector.Unboxed as U
 
+
+-- | A monad transformer for Monte-Carlo calculations.
+type MonteCarloT m s = StateT s (RVarT m)
+
+-- | Wraps the Identity monad in the 'MonteCarloT' transformer.
+type MonteCarlo s a = MonteCarloT Identity s a
+
+-- | "Runs" a MonteCarlo calculation and provides the result of the computation.
+runMC :: MonadRandom (StateT b Identity) => MonteCarlo s c  -- ^ Monte Carlo computation.
+                                         -> b  -- ^ Initial state.
+                                         -> s  -- ^ Initial random-generator state.
+                                         -> c  -- ^ Final result of computation.
+runMC mc randState initState = flip evalState randState $ sampleRVarTWith lift (evalStateT mc initState)
+
+type MCObservables = Observables (U.Vector Double)
 
 {- | The 'Discretize' class defines those
 models on which Monte Carlo simulations
@@ -41,15 +55,15 @@ class Discretize a where
     -- | Initializes a Monte Carlo simulation for a given number of runs.
     initialize :: Discretize a => a   -- ^ Model
                                -> Int -- ^ number of trials
-                               -> MCProducer ()
+                               -> MonteCarlo (MCObservables, Double) ()
 
     -- | Evolves the internal states of the MC variables between two times.
     evolve :: Discretize a => a        -- ^ Model
                            -> Double   -- ^ time to evolve to
                            -> Bool     -- whether or not to use flipped variates
-                           -> MCProducer ()
+                           -> MonteCarlo (MCObservables, Double) ()
     evolve mdl t2 anti = do
-        (_, t1) <- lift get
+        (_, t1) <- get
         let ms = maxStep mdl
         if (t2-t1) < ms then 
             evolve' mdl t2 anti
@@ -58,16 +72,16 @@ class Discretize a where
             evolve mdl t2 anti
 
     -- | Stateful discounting function, takes a model and a time, and returns a vector of results.
-    discounter :: Discretize a => a -> Double -> MCProducer ()
+    discounter :: Discretize a => a -> Double -> MonteCarlo (MCObservables, Double) (U.Vector Double)
 
     -- | Stateful forward generator for a given model at a certain time.
-    forwardGen :: Discretize a => a -> Double -> MCProducer ()
+    forwardGen :: Discretize a => a -> Double -> MonteCarlo (MCObservables, Double) (U.Vector Double)
 
     -- | Internal function to evolve a model to a given time.
     evolve' :: Discretize a => a      -- ^ model
                             -> Double -- ^ time to evolve to
                             -> Bool   -- ^ whether or not to use flipped variates
-                            -> MCProducer () -- ^ computation result
+                            -> MonteCarlo (MCObservables, Double) () -- ^ computation result
 
     -- | Determines the maximum size time-step for discretization purposes. Defaults to 1/250.
     maxStep :: Discretize a => a -> Double
