@@ -42,7 +42,7 @@ instance Discretize Merton where
         postVal <- U.forM (U.zip grwth stateVec) $ \ ( g,x ) -> do
              normResid1 <- lift stdNormal
              normResid2 <- lift stdNormal
-             poissonResid <- lift $ integralPoisson (intensity * (t2-t1)) :: MonteCarlo (Observables, Double) Int
+             poissonResid <- lift $ integralPoisson (intensity * (t2-t1)) :: MonteCarlo (MCObservables, Double) Int
              let  poisson' = fromIntegral poissonResid
                   jumpterm = mu*poisson'+sig*sqrt poisson' * normResid2
              if anti then

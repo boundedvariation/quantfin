@@ -63,6 +63,7 @@ library
                        Quant.ContingentClaim
                        Quant.Date
                        Quant.Test
+                       Quant.MCTypes
   
   -- Modules included in this library but not exported.
   -- other-modules:       

@@ -9,6 +9,7 @@ module Quant.ContingentClaim (
   , Observables (..)
   , ContingentClaimBasket (..)
   , OptionType (..)
+  , ObservablePuller (..)
   , ccBasket
 
   -- * Options and option combinators
@@ -32,37 +33,10 @@ module Quant.ContingentClaim (
   , obsHead
         )  where
 
+import Quant.MCTypes
 import Data.List
 import Data.Ord
-import Quant.Date
 import qualified Data.Vector.Unboxed as U
-
-type CashFlow = Double
-
--- | 'ContingentClaim'' is the underlying type of contingent claims.
-data ContingentClaim' = ContingentClaim' {
-    payoutTime   :: Double                               -- ^ Payout time for cash flow
-  , collector    :: [U.Vector Double] -> U.Vector Double 
-  , observations :: [ObservablePuller]
-}
-
-
-data ObservablePuller = forall a . ObservablePuller {
-    obsTime               :: Double                  -- ^ Time of observation
-  , observableAccessor    :: Observables a -> a -- ^ Function to access specific observable
-  , observableTransformer :: Double -> Double   -- ^ Function to pre-process observations (if necessary)
-}
-
--- | 'ContingentClaim' is just a list of the underlying 'ContingentClaim''s.
-type ContingentClaim = [ContingentClaim']
-
--- | Observables are the observables available in a Monte Carlo simulation.
---Most basic MCs will have one observables (Black-Scholes) whereas more
---complex ones will have multiple (i.e. Heston-Hull-White).
-data Observables a = Observables [a] deriving (Eq, Show)
-
--- | Type for Put or Calls
-data OptionType = Put | Call deriving (Eq,Show)
 
 -- | Function to generate a vanilla put/call style payout.
 vanillaPayout :: OptionType  -- ^ Put or Call
@@ -162,12 +136,12 @@ ccBasket ccs = ContingentClaimBasket (sortBy (comparing (\(ContingentClaim' a _ 
 obsHead :: Observables a -> a
 obsHead (Observables (x:_)) = x
 
-changeObservableFct' :: ContingentClaim' -> (Observables a -> a) -> ContingentClaim'
+changeObservableFct' :: ContingentClaim' -> (Observables (U.Vector Double) -> U.Vector Double) -> ContingentClaim'
 changeObservableFct' c@(ContingentClaim' _ _ calcs) f = c { observations = map (\(ObservablePuller t _ g) -> ObservablePuller t f g) calcs }
 
 -- | Offers the ability to change the function on the observable an option is based on.
 --All options default to being based on the first observable.
-changeObservableFct :: ContingentClaim -> (Observables a -> a) -> ContingentClaim
+changeObservableFct :: ContingentClaim -> (Observables (U.Vector Double) -> U.Vector Double) -> ContingentClaim
 changeObservableFct ccs f = map (`changeObservableFct'` f) ccs
 
 -- | Utility function for when the observable function is just '!!'
