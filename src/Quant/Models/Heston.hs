@@ -47,9 +47,7 @@ instance Discretize Heston where
             newV = U.map snd states
         put (Observables [newS, newV], t2)
 
-    discounter (Heston _ _ _ _ _ _ _ d) t = do
-        size <- getTrials
-        return $ U.replicate size $ disc d t
+    discounter (Heston _ _ _ _ _ _ _ d) t = return $ disc d t
 
     forwardGen (Heston _ _ _ _ _ _ fg _) t2 = do
         size <- getTrials

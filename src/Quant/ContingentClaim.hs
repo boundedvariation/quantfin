@@ -3,6 +3,7 @@ module Quant.ContingentClaim (
     ContingentClaim
   , ContingentClaim' (..)
   , Observables (..)
+  , MCObservables
   , ContingentClaimBasket (..)
   , OptionType (..)
   , ccBasket
@@ -36,10 +37,10 @@ import qualified Data.Vector.Unboxed as U
 -- | 'ContingentClaim'' is the underlying type of contingent claims.
 data ContingentClaim' = ContingentClaim' {
     payoutTime   :: Double                               -- ^ Payout time for cash flow
-  , collector    :: [U.Vector Double] -> U.Vector Double 
+  , collector    :: [Double]          -> Double 
   , observations :: [( Double                            
-                     , Observables  -> U.Vector Double   
-                     , Double       -> Double) ]         {- ^ List containing:
+                     , MCObservables  -> Double   
+                     , Double         -> Double) ]         {- ^ List containing:
                                                          -- Time of observation, 
                                                          -- Function to access specific observable, 
                                                          -- Function to collect observations and transform them into a cash flow. -}
@@ -51,7 +52,9 @@ type ContingentClaim = [ContingentClaim']
 -- | Observables are the observables available in a Monte Carlo simulation.
 --Most basic MCs will have one observables (Black-Scholes) whereas more
 --complex ones will have multiple (i.e. Heston-Hull-White).
-data Observables = Observables [U.Vector Double] deriving (Eq, Show)
+data Observables a = Observables { obsGet :: [a] } deriving (Eq, Show)
+
+type MCObservables = Observables Double
 
 -- | Type for Put or Calls
 data OptionType = Put | Call deriving (Eq,Show)
@@ -78,7 +81,7 @@ binaryPayout pc strike amount x = case pc of
 -- | Takes a maturity time and a function and generates a ContingentClaim 
 --dependent only on the terminal value of the observable.
 terminalOnly :: Double -> (Double -> Double) -> ContingentClaim
-terminalOnly t f = [ContingentClaim' t head [(t, obsHead, f)]]
+terminalOnly t f = [ContingentClaim' t head [(t, head . obsGet, f)]]
 
 -- | Takes an OptionType, a strike, and a time to maturity and generates a vanilla option.
 vanillaOption :: OptionType -> Double -> Double -> ContingentClaim
@@ -93,9 +96,9 @@ binaryOption pc strike amount t = terminalOnly t $ binaryPayout pc strike amount
 --maturity and generates an arithmetic Asian option.
 arithmeticAsianOption :: OptionType -> Double -> [Double] -> Double -> ContingentClaim
 arithmeticAsianOption pc strike obsTimes t = [ContingentClaim' t f obs]
-    where obs = map (\x -> (x, obsHead, id)) obsTimes
-          f k = U.map (vanillaPayout pc strike . (/fromIntegral l))
-              $ foldl1' (U.zipWith (+)) k
+    where obs = map (\x -> (x, head . obsGet, id)) obsTimes
+          f k = vanillaPayout pc strike . (/fromIntegral l)
+              $ foldl1' (+) k
             where l = length k
 
 -- | Takes an OptionType, a strike, observation times, time to
@@ -103,14 +106,14 @@ arithmeticAsianOption pc strike obsTimes t = [ContingentClaim' t f obs]
 geometricAsianOption :: OptionType -> Double -> [Double] -> Double -> ContingentClaim
 geometricAsianOption pc strike obsTimes t = [ContingentClaim' t f obs]
     where obs = map (\x -> (x, obsHead, id)) obsTimes
-          f k = U.map (vanillaPayout pc strike . (** (1/fromIntegral l)))
-              $ foldl1' (U.zipWith (*)) k
+          f k = vanillaPayout pc strike . (** (1/fromIntegral l))
+              $ foldl1' (*) k
             where l = length k
 
 -- | Scales up a contingent claim by a multiplier.
 multiplier :: Double -> ContingentClaim -> ContingentClaim
 multiplier notional cs = map f cs
-    where f c@(ContingentClaim' _ collFct _) = c { collector = U.map (*notional) . collFct }
+    where f c@(ContingentClaim' _ collFct _) = c { collector = (*notional) . collFct }
 
 -- | Flips the signs in a contingent claim to make it a short position.
 short :: ContingentClaim -> ContingentClaim
@@ -151,15 +154,15 @@ ccBasket ccs = ContingentClaimBasket (sortBy (comparing payoutTime) ccs) monitor
     where monitorTimes = sort . nub $ concatMap (map fst3 . observations) ccs
 
 -- | Utility function to pull the head of a basket of observables.
-obsHead :: Observables -> U.Vector Double
+obsHead :: Observables a -> a
 obsHead (Observables (x:_)) = x
 
-changeObservableFct' :: ContingentClaim' -> (Observables -> U.Vector Double) -> ContingentClaim'
+changeObservableFct' :: ContingentClaim' -> (MCObservables -> Double) -> ContingentClaim'
 changeObservableFct' c@(ContingentClaim' _ _ calcs) f = c { observations = map (\(t, _, g) -> (t, f, g)) calcs }
 
 -- | Offers the ability to change the function on the observable an option is based on.
 --All options default to being based on the first observable.
-changeObservableFct :: ContingentClaim -> (Observables -> U.Vector Double) -> ContingentClaim
+changeObservableFct :: ContingentClaim -> (MCObservables -> Double) -> ContingentClaim
 changeObservableFct ccs f = map (`changeObservableFct'` f) ccs
 
 fst3 :: (a,b,c) -> a

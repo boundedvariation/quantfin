@@ -35,11 +35,8 @@ instance Discretize Dupire where
                  return $ x * exp (g + normResid*v)
         put (Observables [postVal], t2)
 
-    discounter (Dupire _ _ _ dsc) t = do
-        size <- getTrials
-        return $ U.replicate size $ disc dsc t
+    discounter (Dupire _ _ _ dsc) t = return $ disc dsc t
 
     forwardGen (Dupire _ _ fg _) t2 = do
         t1 <- gets snd
-        size <- getTrials
-        return $ U.replicate size $ forward fg t1 t2
+        return $ forward fg t1 t2

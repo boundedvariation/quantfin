@@ -11,8 +11,6 @@ module Quant.MonteCarlo (
   , Discretize(..)
   , OptionType(..)
 
-  , getTrials
-
   )
 where
 
@@ -50,14 +48,13 @@ class Discretize a where
 
     -- | Initializes a Monte Carlo simulation for a given number of runs.
     initialize :: Discretize a => a   -- ^ Model
-                               -> Int -- ^ number of trials
-                               -> MonteCarlo (Observables, Double) ()
+                               -> MonteCarlo (MCObservables, Double) ()
 
     -- | Evolves the internal states of the MC variables between two times.
     evolve :: Discretize a => a        -- ^ Model
                            -> Double   -- ^ time to evolve to
                            -> Bool     -- whether or not to use flipped variates
-                           -> MonteCarlo (Observables, Double) ()
+                           -> MonteCarlo (MCObservables, Double) ()
     evolve mdl t2 anti = do
         (_, t1) <- get
         let ms = maxStep mdl
@@ -68,16 +65,16 @@ class Discretize a where
             evolve mdl t2 anti
 
     -- | Stateful discounting function, takes a model and a time, and returns a vector of results.
-    discounter :: Discretize a => a -> Double -> MonteCarlo (Observables, Double) (U.Vector Double)
+    discounter :: Discretize a => a -> Double -> MonteCarlo (MCObservables, Double) Double
 
     -- | Stateful forward generator for a given model at a certain time.
-    forwardGen :: Discretize a => a -> Double -> MonteCarlo (Observables, Double) (U.Vector Double)
+    forwardGen :: Discretize a => a -> Double -> MonteCarlo (MCObservables, Double) Double
 
     -- | Internal function to evolve a model to a given time.
     evolve' :: Discretize a => a      -- ^ model
                             -> Double -- ^ time to evolve to
                             -> Bool   -- ^ whether or not to use flipped variates
-                            -> MonteCarlo (Observables, Double) () -- ^ computation result
+                            -> MonteCarlo (MCObservables, Double) () -- ^ computation result
 
     -- | Determines the maximum size time-step for discretization purposes. Defaults to 1/250.
     maxStep :: Discretize a => a -> Double
@@ -89,35 +86,33 @@ class Discretize a where
         ->  ContingentClaimBasket  -- ^ compilied basket of claims
         -> Int                     -- ^ number of trials
         -> Bool                    -- ^ antithetic?
-        -> MonteCarlo (Observables, Double) Double -- ^ computation result
+        -> MonteCarlo (MCObservables, Double) Double -- ^ computation result
     simulateState modl (ContingentClaimBasket cs ts) trials anti = do
-        initialize modl trials
-        avg <$> process Map.empty (U.replicate trials 0) cs ts
-            where 
-                process m cfs ccs@(c@(ContingentClaim' t _ _):cs') (obsT:ts') = 
-                    if t >= obsT then do
-                        evolve modl obsT anti
-                        obs <- gets fst
-                        let m' = Map.insert obsT obs m
-                        process m' cfs ccs ts'
-                    else do
-                        evolve modl t anti
-                        let cfs' = processClaimWithMap c m
-                        d <- discounter modl obsT
-                        let cfs'' = cfs' |*| d
-                        process m (cfs |+| cfs'') cs' (obsT:ts')
+        avg <$> (U.replicateM trials trial)
+          where 
+            trial = initialize modl >> process Map.empty 0 cs ts
 
-                process m cfs (c:cs') [] = do
-                    d <- discounter modl (payoutTime c)
-                    let cfs' = d |*| processClaimWithMap c m
-                    process m (cfs |+| cfs') cs' []
+            process m cfs ccs@(c@(ContingentClaim' t _ _):cs') (obsT:ts') = 
+                if t >= obsT then do
+                    evolve modl obsT anti
+                    obs <- gets fst
+                    let m' = Map.insert obsT obs m
+                    process m' cfs ccs ts'
+                else do
+                    evolve modl t anti
+                    let cfs' = processClaimWithMap c m
+                    d <- discounter modl obsT
+                    let cfs'' = cfs' * d
+                    process m (cfs + cfs'') cs' (obsT:ts')
 
-                process _ cfs _ _ = return cfs
+            process m cfs (c:cs') [] = do
+                d <- discounter modl (payoutTime c)
+                let cfs' = d * processClaimWithMap c m
+                process m (cfs + cfs') cs' []
 
-                v1 |+| v2 = U.zipWith (+) v1 v2
-                v1 |*| v2 = U.zipWith (*) v1 v2
+            process _ cfs _ _ = return cfs
 
-                avg v = U.sum v / fromIntegral (U.length v)
+            avg v = U.sum v / fromIntegral (U.length v)
 
     -- | Runs a simulation for a 'ContingentClaim'.
     runSimulation :: (Discretize a,
@@ -147,14 +142,10 @@ class Discretize a where
     quickSimAnti :: Discretize a => a -> ContingentClaim -> Int -> Double
     quickSimAnti mdl opts trials = runSimulationAnti mdl opts (pureMT 500) trials
 
--- | Utility function to get the number of trials.
-getTrials :: MonteCarlo (Observables, Double) Int
-getTrials = U.length <$> gets (obsHead . fst)
 
-
-processClaimWithMap :: ContingentClaim' -> Map.Map Double Observables -> U.Vector Double
+processClaimWithMap :: ContingentClaim' -> Map.Map Double MCObservables -> Double
 processClaimWithMap (ContingentClaim' _ c obs) m = c vals
     where 
-        vals = map (\(t , g , f) -> U.map f . g $ m Map.! t) obs
+        vals = map (\(t , g , f) -> f . g $ m Map.! t) obs
 
 
