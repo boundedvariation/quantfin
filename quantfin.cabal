@@ -37,7 +37,7 @@ maintainer:          timothy.dees@gmail.com
 -- A copyright notice.
 -- copyright:           
 
-category:            Quant
+category:            Finance
 
 build-type:          Simple
 
@@ -61,6 +61,7 @@ library
                        Quant.Models.Heston
                        Quant.MonteCarlo
                        Quant.ContingentClaim
+                       Quant.Date
                        Quant.Test
   
   -- Modules included in this library but not exported.
@@ -77,7 +78,8 @@ library
                        random-fu,
                        containers,
                        rvar,
-                       mersenne-random-pure64
+                       mersenne-random-pure64,
+                       pipes
 
   -- Directories containing source files.
   hs-source-dirs:      src
