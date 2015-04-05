@@ -11,7 +11,6 @@ import Data.Random
 import Control.Monad.State
 import Quant.MonteCarlo
 import Quant.ContingentClaim
-import qualified Data.Vector.Unboxed as U
 
 -- | 'Black' represents a Black-Scholes model.
 data Black = forall a b  . (YieldCurve a, YieldCurve b) => Black {
@@ -46,6 +45,8 @@ instance Discretize Black where
 
     discounter (Black _ _ _ dsc) t = return $ disc dsc t
 
-    forwardGen (Black _ _ fg _) t2 = return $ forward fg t1 t2
+    forwardGen (Black _ _ fg _) t2 = do
+      (_, t1) <- get
+      return $ forward fg t1 t2
 
     maxStep _ = 100

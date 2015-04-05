@@ -22,7 +22,6 @@ import Data.Functor.Identity
 import Data.RVar
 import System.Random.Mersenne.Pure64
 import qualified Data.Map as Map
-import qualified Data.Vector.Unboxed as U
 
 -- | A monad transformer for Monte-Carlo calculations.
 type MonteCarloT m s = StateT s (RVarT m)
@@ -87,10 +86,9 @@ class Discretize a where
         -> Int                     -- ^ number of trials
         -> Bool                    -- ^ antithetic?
         -> MonteCarlo (MCObservables, Double) Double -- ^ computation result
-    simulateState modl (ContingentClaimBasket cs ts) trials anti = do
-        avg <$> (U.replicateM trials trial)
+    simulateState modl (ContingentClaimBasket cs ts) trials anti = avg <$> replicateM trials singleTrial
           where 
-            trial = initialize modl >> process Map.empty 0 cs ts
+            singleTrial = initialize modl >> process Map.empty 0 cs ts
 
             process m cfs ccs@(c@(ContingentClaim' t _ _):cs') (obsT:ts') = 
                 if t >= obsT then do
@@ -112,7 +110,7 @@ class Discretize a where
 
             process _ cfs _ _ = return cfs
 
-            avg v = U.sum v / fromIntegral (U.length v)
+            avg v = sum v / fromIntegral (length v)
 
     -- | Runs a simulation for a 'ContingentClaim'.
     runSimulation :: (Discretize a,

@@ -10,7 +10,6 @@ import Control.Monad.State
 import Quant.ContingentClaim
 import Quant.MonteCarlo
 import Quant.YieldCurve
-import qualified Data.Vector.Unboxed as U
 
 -- | 'Dupire' represents a Dupire-style local vol model.
 data Dupire = forall a b . (YieldCurve a, YieldCurve b) => Dupire {
@@ -20,20 +19,17 @@ data Dupire = forall a b . (YieldCurve a, YieldCurve b) => Dupire {
  , mertonDiscounter  ::  b } -- ^ 'YieldCurve' to generate discount rates
 
 instance Discretize Dupire where
-    initialize (Dupire s _ _ _) trials = put (Observables [U.replicate trials s], 0)
+    initialize (Dupire s _ _ _) = put (Observables [s], 0)
 
     evolve' d@(Dupire _ f _ _) t2 anti = do
-        (Observables (stateVec:_), t1) <- get
+        (Observables (stateVal:_), t1) <- get
         fwd <- forwardGen d t2
-        let vols   = U.map (f t1) stateVec
-            grwth = U.map (\(fwdVal, v) -> (fwdVal - v * v / 2) / (t2-t1)) $ U.zip fwd vols
-        postVal <- U.forM (U.zip3 grwth stateVec vols) $ \ ( g,x,v ) -> do
-             normResid <- lift stdNormal
-             if anti then
-                 return $ x * exp (g - normResid*v)
-             else
-                 return $ x * exp (g + normResid*v)
-        put (Observables [postVal], t2)
+        let vol   = f t1 stateVal
+            grwth = (fwd - vol * vol / 2) / (t2-t1)
+        normResid <- lift stdNormal
+        let s' | anti      = stateVal * exp (grwth - normResid*vol)
+               | otherwise = stateVal * exp (grwth - normResid*vol)
+        put (Observables [s'], t2)
 
     discounter (Dupire _ _ _ dsc) t = return $ disc dsc t
 

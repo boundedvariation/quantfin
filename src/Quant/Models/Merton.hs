@@ -11,7 +11,6 @@ import Control.Monad.State
 import Quant.MonteCarlo
 import Quant.ContingentClaim
 import Quant.YieldCurve
-import qualified Data.Vector.Unboxed as U
 
 -- | 'Merton' represents a Merton model (Black-Scholes w/ jumps).
 data Merton = forall a b . (YieldCurve a, YieldCurve b) => Merton {
@@ -32,30 +31,24 @@ data Merton = forall a b . (YieldCurve a, YieldCurve b) => Merton {
             --addon = exp $ (intensity * t :+ 0) * (-i*k*(inner1 - 1) + inner2 - 1)
 
 instance Discretize Merton where
-    initialize (Merton s _ _ _ _ _ _) trials = put (Observables [U.replicate trials s], 0)
+    initialize (Merton s _ _ _ _ _ _) = put (Observables [s], 0)
 
     evolve' m@(Merton _ vol intensity mu sig _ _) t2 anti = do
-        (Observables (stateVec:_), t1) <- get
+        (Observables (stateVal:_), t1) <- get
         fwd <- forwardGen m t2
         let correction = exp (mu + sig*sig /2.0) - 1
-            grwth = U.map (\x -> (x - vol*vol/2 - intensity * correction) * (t2-t1)) fwd
-        postVal <- U.forM (U.zip grwth stateVec) $ \ ( g,x ) -> do
-             normResid1 <- lift stdNormal
-             normResid2 <- lift stdNormal
-             poissonResid <- lift $ integralPoisson (intensity * (t2-t1)) :: MonteCarlo (Observables, Double) Int
-             let  poisson' = fromIntegral poissonResid
-                  jumpterm = mu*poisson'+sig*sqrt poisson' * normResid2
-             if anti then
-                return $ x * exp (g - normResid1*vol + jumpterm)
-             else
-                return $ x * exp (g + normResid1*vol + jumpterm)
-        put (Observables [postVal], t2)
+            grwth = (fwd - vol*vol/2 - intensity * correction) * (t2-t1)
+        normResid1 <- lift stdNormal
+        normResid2 <- lift stdNormal
+        poissonResid <- lift $ integralPoisson (intensity * (t2-t1)) :: MonteCarlo (MCObservables, Double) Int
+        let  poisson' = fromIntegral poissonResid
+             jumpterm = mu*poisson'+sig*sqrt poisson' * normResid2
+             s' | anti      = stateVal * exp (grwth - normResid1*vol + jumpterm)
+                | otherwise = stateVal * exp (grwth + normResid1*vol + jumpterm)
+        put (Observables [s'], t2)
 
-    discounter (Merton _ _ _ _ _ _ dsc) t = do
-        size <- getTrials
-        return $ U.replicate size $ disc dsc t
+    discounter (Merton _ _ _ _ _ _ dsc) t = return $ disc dsc t
 
     forwardGen (Merton _ _ _ _ _ fg _) t2 = do
-        size <- getTrials
         t1 <- gets snd
-        return $ U.replicate size $ forward fg t1 t2
+        return $ forward fg t1 t2

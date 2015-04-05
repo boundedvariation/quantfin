@@ -26,12 +26,10 @@ module Quant.ContingentClaim (
 
   -- * Utility functions
   , obsNum
-  , obsHead
         )  where
 
 import Data.List
 import Data.Ord
-import qualified Data.Vector.Unboxed as U
 
 
 -- | 'ContingentClaim'' is the underlying type of contingent claims.
@@ -105,7 +103,7 @@ arithmeticAsianOption pc strike obsTimes t = [ContingentClaim' t f obs]
 --maturity and generates a geometric Asian option.
 geometricAsianOption :: OptionType -> Double -> [Double] -> Double -> ContingentClaim
 geometricAsianOption pc strike obsTimes t = [ContingentClaim' t f obs]
-    where obs = map (\x -> (x, obsHead, id)) obsTimes
+    where obs = map (\x -> (x, head . obsGet, id)) obsTimes
           f k = vanillaPayout pc strike . (** (1/fromIntegral l))
               $ foldl1' (*) k
             where l = length k
@@ -153,10 +151,6 @@ ccBasket :: ContingentClaim -> ContingentClaimBasket
 ccBasket ccs = ContingentClaimBasket (sortBy (comparing payoutTime) ccs) monitorTimes
     where monitorTimes = sort . nub $ concatMap (map fst3 . observations) ccs
 
--- | Utility function to pull the head of a basket of observables.
-obsHead :: Observables a -> a
-obsHead (Observables (x:_)) = x
-
 changeObservableFct' :: ContingentClaim' -> (MCObservables -> Double) -> ContingentClaim'
 changeObservableFct' c@(ContingentClaim' _ _ calcs) f = c { observations = map (\(t, _, g) -> (t, f, g)) calcs }
 
@@ -170,4 +164,4 @@ fst3 (x, _, _) = x
 
 -- | Utility function for when the observable function is just '!!'
 obsNum :: ContingentClaim -> Int -> ContingentClaim
-obsNum ccs k = changeObservableFct ccs $ \(Observables x)-> x !! k
+obsNum ccs k = changeObservableFct ccs $ (!!k) . obsGet
