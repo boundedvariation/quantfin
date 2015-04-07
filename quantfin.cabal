@@ -54,6 +54,8 @@ library
   exposed-modules:     Quant.YieldCurve
                        Quant.VolSurf
                        Quant.Math.Integration
+                       Quant.Math.Interpolation
+                       Quant.Math.Utilities
                        Quant.Models
                        Quant.Models.Black
                        Quant.Models.Merton
