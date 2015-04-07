@@ -144,6 +144,4 @@ class Discretize a where
 processClaimWithMap :: ContingentClaim' -> Map.Map Double MCObservables -> Double
 processClaimWithMap (ContingentClaim' _ c obs) m = c vals
     where 
-        vals = map (\(t , g , f) -> f . g $ m Map.! t) obs
-
-
+        vals = map (\(ObservablePuller t g f) -> f . g $ m Map.! t) obs
