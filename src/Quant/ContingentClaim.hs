@@ -44,7 +44,6 @@ data ContingentClaim' = ContingentClaim' {
 data ObservablePuller = ObservablePuller {
     obsTime      :: Double
   , obsGetter    :: MCObservables -> Double
-  , obsTransform :: Double -> Double
 }
 
 -- | 'ContingentClaim' is just a list of the underlying 'ContingentClaim''s.
@@ -82,7 +81,7 @@ binaryPayout pc strike amount x = case pc of
 -- | Takes a maturity time and a function and generates a ContingentClaim 
 --dependent only on the terminal value of the observable.
 terminalOnly :: Double -> (Double -> Double) -> ContingentClaim
-terminalOnly t f = [ContingentClaim' t head [ObservablePuller t (head . obsGet) f]]
+terminalOnly t f = [ContingentClaim' t (f . head) [ObservablePuller t (head . obsGet)]]
 
 -- | Takes an OptionType, a strike, and a time to maturity and generates a vanilla option.
 vanillaOption :: OptionType -> Double -> Double -> ContingentClaim
@@ -97,7 +96,7 @@ binaryOption pc strike amount t = terminalOnly t $ binaryPayout pc strike amount
 --maturity and generates an arithmetic Asian option.
 arithmeticAsianOption :: OptionType -> Double -> [Double] -> Double -> ContingentClaim
 arithmeticAsianOption pc strike obsTimes t = [ContingentClaim' t f obs]
-    where obs = map (\x -> ObservablePuller x (head . obsGet) id) obsTimes
+    where obs = map (\x -> ObservablePuller x (head . obsGet)) obsTimes
           f k = vanillaPayout pc strike . (/fromIntegral l)
               $ foldl1' (+) k
             where l = length k
@@ -106,7 +105,7 @@ arithmeticAsianOption pc strike obsTimes t = [ContingentClaim' t f obs]
 --maturity and generates a geometric Asian option.
 geometricAsianOption :: OptionType -> Double -> [Double] -> Double -> ContingentClaim
 geometricAsianOption pc strike obsTimes t = [ContingentClaim' t f obs]
-    where obs = map (\x -> ObservablePuller x (head . obsGet) id) obsTimes
+    where obs = map (\x -> ObservablePuller x (head . obsGet)) obsTimes
           f k = vanillaPayout pc strike . (** (1/fromIntegral l))
               $ foldl1' (*) k
             where l = length k
@@ -161,7 +160,7 @@ ccBasket ccs = ContingentClaimBasket (sortBy (comparing payoutTime) ccs) monitor
     where monitorTimes = sort . nub $ concatMap (map obsTime . observations) ccs
 
 changeObservableFct' :: ContingentClaim' -> (MCObservables -> Double) -> ContingentClaim'
-changeObservableFct' c@(ContingentClaim' _ _ calcs) f = c { observations = map (\(ObservablePuller t _ g) -> ObservablePuller t f g) calcs }
+changeObservableFct' c@(ContingentClaim' _ _ calcs) f = c { observations = map (\(ObservablePuller t _) -> ObservablePuller t f) calcs }
 
 -- | Offers the ability to change the function on the observable an option is based on.
 --All options default to being based on the first observable.
