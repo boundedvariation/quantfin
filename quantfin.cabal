@@ -63,7 +63,7 @@ library
                        Quant.Models.Heston
                        Quant.MonteCarlo
                        Quant.ContingentClaim
-                       Quant.Date
+                       Quant.Types
                        Quant.Test
   
   -- Modules included in this library but not exported.
