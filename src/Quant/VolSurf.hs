@@ -1,10 +1,13 @@
 module Quant.VolSurf (
     VolSurf (..)
  ,  FlatSurf (..)
+ ,  GridSurf (..)
 ) where
 
-
+import Quant.Types
+import Quant.Math.Interpolation
 import Quant.YieldCurve
+import qualified Data.Map as M
 
 {- | The 'VolSurf' class defines the
 basic operations of a volatility surface.
@@ -13,20 +16,20 @@ Minimal complete definition: 'vol'.
 -}
 class VolSurf a where
     -- | Calculate the implied vol for a given strike/maturity.
-    vol :: VolSurf a => a -> Double -> Double -> Double
+    vol :: VolSurf a => a -> Double -> TimeOffset -> Double
 
     -- | Calculate the variance at a given strike/maturity.
-    var :: VolSurf a => a -> Double -> Double -> Double
+    var :: VolSurf a => a -> Double -> TimeOffset -> Double
     var vs s t = v*v*t
         where v = vol vs s t
 
     -- | Calculates Dupire local vol for a given strike/maturity/forward generating yield curve.
-    localVol :: (VolSurf a, YieldCurve b) => a       -- ^ Volatility surface
-                                          -> Double  -- ^ Initial stock price
-                                          -> b       -- ^ 'YieldCurve' to generate forwards
-                                          -> Double  -- ^ Current stock level
-                                          -> Double  -- ^ Time
-                                          -> Double  -- ^ Local volatility
+    localVol :: (VolSurf a, YieldCurve b) => a           -- ^ Volatility surface
+                                          -> Double      -- ^ Initial stock price
+                                          -> b           -- ^ 'YieldCurve' to generate forwards
+                                          -> Double      -- ^ Current stock level
+                                          -> TimeOffset  -- ^ Time
+                                          -> Double      -- ^ Local volatility
     localVol v s0 rcurve k t 
         | w==0.0 || solution<0.0 = sqrt dwdt
         | otherwise = sqrt solution
@@ -56,3 +59,17 @@ data FlatSurf = FlatSurf Double
 
 instance VolSurf FlatSurf where
     vol (FlatSurf x) _ _ = x
+
+data GridSurf = GridSurf {
+    gridStrikes             :: [Double]
+  , gridMaturities          :: [TimeOffset]
+  , gridQuotes              :: M.Map (Double, TimeOffset) Double
+  , gridStrikeInterpolator  :: Interpolator1d
+  , gridTimeInterpolator    :: Interpolator1d
+}
+
+instance VolSurf GridSurf where
+    vol (GridSurf sts mats quotes vInterp tInterp) strike t = tInterp mats interpolatedVs t
+        where
+            interpolatedVs = map (\k -> vInterp sts k strike) $ map allForT mats
+            allForT t' = map (\ x -> quotes M.! (x, t')) sts
