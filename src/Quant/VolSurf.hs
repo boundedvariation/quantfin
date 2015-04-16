@@ -71,5 +71,5 @@ data GridSurf = GridSurf {
 instance VolSurf GridSurf where
     vol (GridSurf sts mats quotes vInterp tInterp) strike t = tInterp mats interpolatedVs t
         where
-            interpolatedVs = map (\k -> vInterp sts k strike) $ map allForT mats
+            interpolatedVs = map ((\k -> vInterp sts k strike) . allForT) mats
             allForT t' = map (\ x -> quotes M.! (x, t')) sts
