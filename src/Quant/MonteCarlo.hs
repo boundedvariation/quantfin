@@ -82,33 +82,39 @@ class Discretize a where
     -- | Perform a simulation of a compiled basket of contingent claims.
     simulateState :: Discretize a => 
             a                      -- ^ model
-        ->  ContingentClaimBasket  -- ^ compilied basket of claims
+        -> ContingentClaimBasket  -- ^ compilied basket of claims
         -> Int                     -- ^ number of trials
         -> Bool                    -- ^ antithetic?
         -> MonteCarlo (MCObservables, Double) Double -- ^ computation result
-    simulateState modl (ContingentClaimBasket cs ts) trials anti = avg <$> replicateM trials singleTrial
+    simulateState modl (ContingentClaimBasket mTimes pTimes vals) trials anti = avg <$> replicateM trials singleTrial
           where 
-            singleTrial = initialize modl >> process Map.empty 0 cs ts
+            singleTrial = do
+              initialize modl
+              (mMonitor, mDisc) <- process Map.empty 0 cs ts []
 
-            process m cfs ccs@(c@(ContingentClaim' t _ _):cs') (obsT:ts') = 
-                if t >= obsT then do
-                    evolve modl obsT anti
+
+            process mMonitor mDisc (mt:mts) (pt:pts) = 
+                if pt >= mt then do
+                    evolve modl mt anti
                     obs <- gets fst
-                    let m' = Map.insert obsT obs m
-                    process m' cfs ccs ts'
+                    let mMonitor' = Map.insert mt obs mMonitor
+                    process mMonitor' mDisc mts (pt:pts)
                 else do
-                    evolve modl t anti
-                    let cfs' = processClaimWithMap c m
-                    d <- discounter modl obsT
-                    let cfs'' = cfs' * d
-                    process m (cfs + cfs'') cs' (obsT:ts')
+                    evolve modl pt anti
+                    d <- discounter modl pt
+                    let mDisc' = Map.insert pt d mDisc
+                    process mMonitor mDisc' (mt:mts) pts 
 
-            process m cfs (c:cs') [] = do
-                d <- discounter modl (payoutTime c)
-                let cfs' = d * processClaimWithMap c m
-                process m (cfs + cfs') cs' []
+            process mMonitor mDisc [] (pt:pts) = do
+                evolve modl pt anti
+                d <- discounter modl pt
+                let mDisc' = Map.insert pt d mDisc
+                process mMonitor mDisc [] pts
 
-            process _ cfs _ _ = return cfs
+            process mMonitor mDisc [] [] = return (mMonitor, mDisc)
+
+            claimTotal (Payout t f) mMonitor mDisc = 
+                where d = mDisc Map.! 
 
             avg v = sum v / fromIntegral (length v)
 
@@ -139,9 +145,3 @@ class Discretize a where
     -- | 'runSimulationAnti' with a default random number generator.
     quickSimAnti :: Discretize a => a -> ContingentClaim -> Int -> Double
     quickSimAnti mdl opts trials = runSimulationAnti mdl opts (pureMT 500) trials
-
-
-processClaimWithMap :: ContingentClaim' -> Map.Map Double MCObservables -> Double
-processClaimWithMap (ContingentClaim' _ c obs) m = c vals
-    where 
-        vals = map (\(ObservablePuller t g) -> g $ m Map.! t) obs

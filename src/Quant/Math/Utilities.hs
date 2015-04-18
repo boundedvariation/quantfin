@@ -1,6 +1,5 @@
 module Quant.Math.Utilities (
     tdmaSolver
-  --, cubicSpline
 ) where
 
 import Control.Monad

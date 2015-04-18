@@ -61,6 +61,7 @@ library
                        Quant.Models.Merton
                        Quant.Models.Dupire
                        Quant.Models.Heston
+                       Quant.Models.Processes
                        Quant.MonteCarlo
                        Quant.ContingentClaim
                        Quant.Types
