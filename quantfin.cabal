@@ -81,8 +81,7 @@ library
                        random-fu,
                        containers,
                        rvar,
-                       mersenne-random-pure64,
-                       pipes
+                       mersenne-random-pure64
 
   -- Directories containing source files.
   hs-source-dirs:      src
