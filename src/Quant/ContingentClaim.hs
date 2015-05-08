@@ -137,7 +137,7 @@ zcb amount t = terminalOnly t $ const amount
 -- | Takes a face value, an interest rate, a payment frequency and makes a fixed bond
 fixedBond :: Double -> Double -> Double -> Int -> ContingentClaim
 fixedBond faceVal intRate freq pmts = zcb faceVal (fromIntegral pmts * freq) 
-                                   <> (mconcat $ map f [1..pmts])
+                                   <> mconcat (map f [1..pmts])
   where
     f = zcb (faceVal * intRate * freq) . fromIntegral 
 
@@ -171,7 +171,7 @@ combine (ContingentClaim x) (ContingentClaim y) = ContingentClaim $ combine' x y
     combine' [] cs = cs
 
 monTimesList :: [Double] -> [CCProcessor]
-monTimesList ts = map (\t -> Monitor t) ts
+monTimesList ts = map Monitor ts
 
 getTime :: CCProcessor -> Double
 getTime (Monitor t) = t

@@ -57,7 +57,7 @@ class Discretize a where
     evolve mdl t2 anti = do
         (_, t1) <- get
         let ms = maxStep mdl
-        if t2 == t1 then return () else
+        unless (t2==t1) $
           if (t2-t1) < ms then 
               evolve' mdl t2 anti
           else do
@@ -127,8 +127,8 @@ class Discretize a where
 
 
             insertCF (CashFlow t amt) ((CashFlow t' amt'):cfs)
-              | t > t' = (CashFlow t' amt') : insertCF (CashFlow t amt) cfs
-              | otherwise = (CashFlow t amt) : CashFlow t' amt' : cfs
+              | t > t' = CashFlow t' amt' : insertCF (CashFlow t amt) cfs
+              | otherwise = CashFlow t amt : CashFlow t' amt' : cfs
             insertCF cf [] = [cf]
 
             avg v = sum v / fromIntegral trials
