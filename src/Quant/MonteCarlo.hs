@@ -57,11 +57,12 @@ class Discretize a where
     evolve mdl t2 anti = do
         (_, t1) <- get
         let ms = maxStep mdl
-        if (t2-t1) < ms then 
-            evolve' mdl t2 anti
-        else do
-            evolve' mdl (t1 + ms) anti
-            evolve mdl t2 anti
+        if t2 == t1 then return () else
+          if (t2-t1) < ms then 
+              evolve' mdl t2 anti
+          else do
+              evolve' mdl (t1 + ms) anti
+              evolve mdl t2 anti
 
     -- | Stateful discounting function, takes a model and a time, and returns a vector of results.
     discounter :: Discretize a => a -> Double -> MonteCarlo (MCObservables, Double) Double
@@ -81,55 +82,69 @@ class Discretize a where
 
     -- | Perform a simulation of a compiled basket of contingent claims.
     simulateState :: Discretize a => 
-            a                      -- ^ model
-        -> ContingentClaimBasket  -- ^ compilied basket of claims
+           a                       -- ^ model
+        -> ContingentClaim         -- ^ compilied basket of claims
         -> Int                     -- ^ number of trials
         -> Bool                    -- ^ antithetic?
         -> MonteCarlo (MCObservables, Double) Double -- ^ computation result
-    simulateState modl (ContingentClaimBasket mTimes pTimes vals) trials anti = avg <$> replicateM trials singleTrial
+    simulateState modl (ContingentClaim ccb) trials anti = avg <$> replicateM trials singleTrial
           where 
-            singleTrial = do
-              initialize modl
-              (mMonitor, mDisc) <- process Map.empty 0 cs ts []
+            singleTrial = initialize modl >> 
+                            process (0 :: Double) Map.empty ccb []
 
 
-            process mMonitor mDisc (mt:mts) (pt:pts) = 
-                if pt >= mt then do
-                    evolve modl mt anti
-                    obs <- gets fst
-                    let mMonitor' = Map.insert mt obs mMonitor
-                    process mMonitor' mDisc mts (pt:pts)
+            process discCFs obsMap (cc:ccs) (cf:cfs) = 
+                let ccTime = getTime cc
+                    nearestCFTime = cfTime cf in
+                if ccTime > nearestCFTime then do
+                    evolve modl nearestCFTime anti
+                    d <- discounter modl nearestCFTime
+                    process (discCFs+d*cfAmount cf) obsMap (cc:ccs) cfs
                 else do
-                    evolve modl pt anti
-                    d <- discounter modl pt
-                    let mDisc' = Map.insert pt d mDisc
-                    process mMonitor mDisc' (mt:mts) pts 
+                    evolve modl ccTime anti
+                    case cc of
+                      Monitor t -> do
+                        evolve modl t anti
+                        obs <- gets fst
+                        let obsMap' = Map.insert ccTime obs obsMap
+                        process discCFs obsMap' ccs (cf:cfs)
+                      Payout t f -> evolve modl t anti >> 
+                          process discCFs obsMap ccs (insertCF (f obsMap) (cf:cfs))
 
-            process mMonitor mDisc [] (pt:pts) = do
-                evolve modl pt anti
-                d <- discounter modl pt
-                let mDisc' = Map.insert pt d mDisc
-                process mMonitor mDisc [] pts
+            process discCFs obsMap (cc:ccs) [] = case cc of
+                      Monitor t -> do
+                        evolve modl t anti
+                        obs <- gets fst
+                        let obsMap' = Map.insert t obs obsMap
+                        process discCFs obsMap' ccs []
+                      Payout t f -> evolve modl t anti >>
+                          process discCFs obsMap ccs [f obsMap]
 
-            process mMonitor mDisc [] [] = return (mMonitor, mDisc)
+            process discCFs obsMap [] (cf:cfs) = do
+                evolve modl (cfTime cf) anti
+                d <- discounter modl $ cfTime cf
+                process (discCFs+d*cfAmount cf) obsMap [] cfs
 
-            claimTotal (Payout t f) mMonitor mDisc = 
-                where d = mDisc Map.! 
 
-            avg v = sum v / fromIntegral (length v)
+            insertCF (CashFlow t amt) ((CashFlow t' amt'):cfs)
+              | t > t' = (CashFlow t' amt') : insertCF (CashFlow t amt) cfs
+              | otherwise = (CashFlow t amt) : CashFlow t' amt' : cfs
+            insertCF cf [] = [cf]
+
+            avg v = sum v / fromIntegral trials
 
     -- | Runs a simulation for a 'ContingentClaim'.
     runSimulation :: (Discretize a,
                              MonadRandom (StateT b Identity)) =>
-                                a                -- ^ model
-                             -> ContingentClaim  -- ^ claims to value
-                             -> b                -- ^ initial random state
-                             -> Int              -- ^ trials
-                             -> Bool             -- ^ whether to use antithetic variables
-                             -> Double           -- ^ final value
+                                a                  -- ^ model
+                             -> ContingentClaim    -- ^ claims to value
+                             -> b                  -- ^ initial random state
+                             -> Int                -- ^ trials
+                             -> Bool               -- ^ whether to use antithetic variables
+                             -> Double             -- ^ final value
     runSimulation modl ccs seed trials anti = runMC run seed (Observables [], 0)
        where
-            run = simulateState modl (ccBasket ccs) trials anti
+            run = simulateState modl ccs trials anti
 
     -- | Like 'runSimulation', but splits the trials in two and does antithetic variates.
     runSimulationAnti :: (Discretize a,

@@ -13,13 +13,15 @@ module Quant.Test (
 	)
 where
 
+import Data.Monoid
 import Quant.MonteCarlo
 import Quant.YieldCurve
 import Quant.ContingentClaim
 import Quant.Models.Black
 import Quant.Models.Heston
 
-baseYC = FlatCurve 0.05 --create a flat yield curve with a 5% rate
+--create a flat yield curve with a 5% rate
+baseYC = FlatCurve 0.05 
 
 black = Black 
 			100     --initial stock price
@@ -27,15 +29,18 @@ black = Black
 			baseYC  --forward generator
 			baseYC  --discount function
 
-opt = vanillaOption Put 100 1 --make a vanilla put, struck at 100, maturing at time 1
+--make a vanilla put, struck at 100, maturing at time 1
+opt = vanillaOption Put 100 1 
 
-val = quickSim black opt 10000 --Run a Monte Carlo on opt in a a black model with 10000 trials
+--Run a Monte Carlo on opt in a a black model with 10000 trials
+val = quickSim black opt 10000 
 
+--Make a call spread with a 100 unit notional
 opt' = multiplier 100 
-	$ vanillaOption Call 100 1 ++ short (vanillaOption Call 120 1) --Make a call spread with a 100 unit notional
+	$ vanillaOption Call 100 1 <> short (vanillaOption Call 120 1) 
 
-val' = quickSimAnti black opt' 10000 --Run a Monte Carlo on the call spread; use antithetic variates
-									 --Returns 
+--Run a Monte Carlo on the call spread; use antithetic variates
+val' = quickSimAnti black opt' 10000 
 
 black' = Black 
 			100     --initial stock price
@@ -56,8 +61,11 @@ heston = Heston
 		baseYC     --forward generator
 		baseYC     --discount function
 
-val''' = quickSimAnti heston opt' 10000 --price the call spread in the Heston model
+--price the call spread in the Heston model
+val''' = quickSimAnti heston opt' 10000 
 
-opt'' = terminalOnly 1 $ \x -> x*x  --create an option that pays off based on the square of its underlying
+--create an option that pays off based on the square of its underlying
+opt'' = terminalOnly 1 $ \x -> x*x  
 
-val'''' = quickSimAnti heston opt'' 10000 --price it in the Heston model
+--price it in the Heston model
+val'''' = quickSimAnti heston opt'' 10000 
