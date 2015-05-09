@@ -1,3 +1,5 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module Quant.ContingentClaim (
     -- * Types for modeling contingent claims.
     ContingentClaim (..)
@@ -26,23 +28,46 @@ module Quant.ContingentClaim (
 
 )  where
 
+import Control.Applicative
+import Control.Monad
 import Data.List
+import Control.Monad.State
 import Data.Monoid
 import Quant.Types
 import qualified Data.Map as M
 
-data CCProcessor = Monitor  {
+type PayoffFunc a = M.Map TimeOffset MCObservables -> a
+
+data CCProcessor   = Monitor  {
                       monitorTime      :: TimeOffset
                   }
                  | Payout   {
                       evalTime         :: TimeOffset
-                    , payoutFunc       :: M.Map TimeOffset MCObservables -> CashFlow
+                    , payoutFunc       :: PayoffFunc CashFlow
                   }
 
 data CashFlow = CashFlow {
     cfTime   :: TimeOffset
   , cfAmount :: Double
 }
+
+type CCBuilder a = StateT [CCProcessor] CCFunc a
+
+monitor :: TimeOffset -> CCBuilder ()
+monitor t = modify (++[Monitor t])
+
+newtype CCFunc a = CCFunc { unCCFunc :: M.Map TimeOffset MCObservables -> a }
+
+instance Functor CCFunc where
+  fmap = liftM
+
+instance Applicative CCFunc where
+  pure  = return
+  (<*>) = ap
+
+instance Monad CCFunc where
+  return x = CCFunc $ const x
+  (CCFunc k) >>= f = CCFunc $ \m -> unCCFunc (f $ k m) m
 
 newtype ContingentClaim = ContingentClaim { unCC :: [CCProcessor] }
 
@@ -59,6 +84,10 @@ type MCObservables = Observables Double
 
 -- | Type for Put or Calls
 data OptionType = Put | Call deriving (Eq,Show)
+
+--monitor :: Int -> TimeOffset -> CCFunc Double
+--monitor idx t = CCFunc $ \m -> (obsGet (m M.! t)) !! idx --so UNHASKELLY!
+
 
 -- | Function to generate a vanilla put/call style payout.
 vanillaPayout :: OptionType  -- ^ Put or Call
