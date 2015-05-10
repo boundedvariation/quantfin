@@ -55,12 +55,6 @@ monitor idx t = do
   m <- lift ask
   return $ obsGet (m M.! t) !! idx  --I know, I know.
 
---specify :: CCBuilder ContingentClaim MCMap a -> ContingentClaim
---specify x = mappend w ccp
---  where ccp = ContingentClaim [CCProcessor (monitorTime $ last' w) (Just r)]
---        (ReaderT w) = execWriterT x
---        r = runReader $ execWriterT x
---        last' = last . unCC
 specify :: CCBuilder ContingentClaim MCMap CashFlow -> ContingentClaim
 specify x = w `mappend` ContingentClaim [CCProcessor (last w') (Just f)]
   where
