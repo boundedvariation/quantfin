@@ -78,9 +78,6 @@ type MCObservables = Observables Double
 -- | Type for Put or Calls
 data OptionType = Put | Call deriving (Eq,Show)
 
---monitor :: Int -> TimeOffset -> CCFunc Double
---monitor idx t = CCFunc $ \m -> (obsGet (m M.! t)) !! idx --so UNHASKELLY!
-
 
 -- | Function to generate a vanilla put/call style payout.
 vanillaPayout :: OptionType  -- ^ Put or Call
