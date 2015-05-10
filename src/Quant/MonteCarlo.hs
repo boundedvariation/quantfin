@@ -93,41 +93,35 @@ class Discretize a where
                             process (0 :: Double) Map.empty ccb []
 
 
-            process discCFs obsMap (cc:ccs) (cf:cfs) = 
-                let ccTime = getTime cc
-                    nearestCFTime = cfTime cf in
-                if ccTime > nearestCFTime then do
-                    evolve modl nearestCFTime anti
-                    d <- discounter modl nearestCFTime
-                    process (discCFs+d*cfAmount cf) obsMap (cc:ccs) cfs
-                else do
-                    evolve modl ccTime anti
-                    case cc of
-                      Monitor t -> do
-                        evolve modl t anti
-                        obs <- gets fst
-                        let obsMap' = Map.insert ccTime obs obsMap
-                        process discCFs obsMap' ccs (cf:cfs)
-                      Payout t f -> evolve modl t anti >> 
-                          process discCFs obsMap ccs (insertCF (f obsMap) (cf:cfs))
+            process discCFs obsMap c@(CCProcessor t mf:ccs) allcfs@(CashFlow cft amt:cfs) = 
+              if t > cft then do
+                  evolve modl cft anti
+                  d <- discounter modl cft
+                  process (discCFs+d*amt) obsMap c cfs
+              else do
+                  evolve modl t anti
+                  obs <- gets fst
+                  let obsMap' = Map.insert t obs obsMap
+                  case mf of
+                    Nothing -> process discCFs obsMap' ccs allcfs
+                    Just f -> process discCFs obsMap' ccs (insertCF (f obsMap') allcfs)
 
-            process discCFs obsMap (cc:ccs) [] = case cc of
-                      Monitor t -> do
-                        evolve modl t anti
-                        obs <- gets fst
-                        let obsMap' = Map.insert t obs obsMap
-                        process discCFs obsMap' ccs []
-                      Payout t f -> evolve modl t anti >>
-                          process discCFs obsMap ccs [f obsMap]
+            process discCFs obsMap (CCProcessor t mf:ccs) [] = do
+              evolve modl t anti
+              obs <- gets fst
+              let obsMap' = Map.insert t obs obsMap
+              case mf of
+                Nothing -> process discCFs obsMap' ccs []
+                Just f -> process discCFs obsMap' ccs [f obsMap']                          
 
             process discCFs obsMap [] (cf:cfs) = do
-                evolve modl (cfTime cf) anti
-                d <- discounter modl $ cfTime cf
-                process (discCFs+d*cfAmount cf) obsMap [] cfs
+              evolve modl (cfTime cf) anti
+              d <- discounter modl $ cfTime cf
+              process (discCFs+d*cfAmount cf) obsMap [] cfs
 
             process discCFs _ _ _ = return discCFs
 
-            insertCF (CashFlow t amt) ((CashFlow t' amt'):cfs)
+            insertCF (CashFlow t amt) (CashFlow t' amt':cfs)
               | t > t' = CashFlow t' amt' : insertCF (CashFlow t amt) cfs
               | otherwise = CashFlow t amt : CashFlow t' amt' : cfs
             insertCF cf [] = [cf]

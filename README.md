@@ -22,17 +22,17 @@ black = Black
 			baseYC  --discount function
 
 --make a vanilla put, struck at 100, maturing at time 1
-opt = vanillaOption Put 100 1 
+vanopt = vanillaOption Call 100 1
 
 --Run a Monte Carlo on opt in a a black model with 10000 trials
-val = quickSim black opt 10000 
+vanoptPrice = quickSim black vanopt 10000 
 
 --Make a call spread with a 100 unit notional
-opt' = multiplier 100 
-	$ vanillaOption Call 100 1 <> short (vanillaOption Call 120 1) 
+cs = multiplier 100 
+   $ vanillaOption Call 100 1 <> short (vanillaOption Call 120 1) 
 
 --Run a Monte Carlo on the call spread; use antithetic variates
-val' = quickSimAnti black opt' 10000 
+csPrice = quickSimAnti black cs 10000 
 
 black' = Black 
 			100     --initial stock price
@@ -40,7 +40,7 @@ black' = Black
 			(NetYC (FlatCurve 0.05) (FlatCurve 0.02))  --forward generator, now with a 2% dividend yield
 			baseYC  --discount rate
 
-val'' = quickSimAnti black' opt' 10000
+callSpreadAnti = quickSimAnti black' cs 10000
 
 --Let's try it with a Heston model
 heston = Heston
@@ -54,12 +54,19 @@ heston = Heston
 		baseYC     --discount function
 
 --price the call spread in the Heston model
-val''' = quickSimAnti heston opt' 10000 
+csHeston = quickSimAnti heston cs 10000 
 
 --create an option that pays off based on the square of its underlying
-opt'' = terminalOnly 1 $ \x -> x*x  
+squareOpt = terminalOnly 1 $ \x -> x*x  
+squareOptPrice = quickSimAnti heston squareOpt 10000
 
---price it in the Heston model
-val'''' = quickSimAnti heston opt'' 10000 
+--create an option with a bizarre payoff
+bizarre = specify $ do
+  x <- monitor 0 1   --check the price of asset 0 @ time 1
+  y <- monitor 0 2   --check the price of asset 1 @ time 2
+  z <- monitor 0 3   --check the price of asset 2 @ time 3
+  return $ CashFlow 4 $ x ^ 3 / y ^ 2 - 3 * z --payoff @ time 4
+bizarrePrice = quickSimAnti heston bizarre 10000 
+
 
 ```
