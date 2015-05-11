@@ -20,6 +20,7 @@ import Control.Applicative
 import Control.Monad.State
 import Data.Functor.Identity
 import Data.RVar
+import Data.Foldable (foldl')
 import System.Random.Mersenne.Pure64
 import qualified Data.Map as Map
 
@@ -47,13 +48,13 @@ class Discretize a where
 
     -- | Initializes a Monte Carlo simulation for a given number of runs.
     initialize :: Discretize a => a   -- ^ Model
-                               -> MonteCarlo (MCObservables, Double) ()
+                               -> MonteCarlo (MCObservables, TimeOffset) ()
 
     -- | Evolves the internal states of the MC variables between two times.
-    evolve :: Discretize a => a        -- ^ Model
-                           -> Double   -- ^ time to evolve to
-                           -> Bool     -- whether or not to use flipped variates
-                           -> MonteCarlo (MCObservables, Double) ()
+    evolve :: Discretize a => a            -- ^ Model
+                           -> TimeOffset   -- ^ time to evolve to
+                           -> Bool         -- whether or not to use flipped variates
+                           -> MonteCarlo (MCObservables, TimeOffset) ()
     evolve mdl t2 anti = do
         (_, t1) <- get
         let ms = maxStep mdl
@@ -65,16 +66,16 @@ class Discretize a where
               evolve mdl t2 anti
 
     -- | Stateful discounting function, takes a model and a time, and returns a vector of results.
-    discounter :: Discretize a => a -> Double -> MonteCarlo (MCObservables, Double) Double
+    discounter :: Discretize a => a -> TimeOffset -> MonteCarlo (MCObservables, TimeOffset) Double
 
     -- | Stateful forward generator for a given model at a certain time.
-    forwardGen :: Discretize a => a -> Double -> MonteCarlo (MCObservables, Double) Double
+    forwardGen :: Discretize a => a -> TimeOffset -> MonteCarlo (MCObservables, TimeOffset) Double
 
     -- | Internal function to evolve a model to a given time.
-    evolve' :: Discretize a => a      -- ^ model
-                            -> Double -- ^ time to evolve to
-                            -> Bool   -- ^ whether or not to use flipped variates
-                            -> MonteCarlo (MCObservables, Double) () -- ^ computation result
+    evolve' :: Discretize a => a          -- ^ model
+                            -> TimeOffset -- ^ time to evolve to
+                            -> Bool       -- ^ whether or not to use flipped variates
+                            -> MonteCarlo (MCObservables, TimeOffset) () -- ^ computation result
 
     -- | Determines the maximum size time-step for discretization purposes. Defaults to 1/250.
     maxStep :: Discretize a => a -> Double
@@ -86,7 +87,7 @@ class Discretize a where
         -> ContingentClaim         -- ^ compilied basket of claims
         -> Int                     -- ^ number of trials
         -> Bool                    -- ^ antithetic?
-        -> MonteCarlo (MCObservables, Double) Double -- ^ computation result
+        -> MonteCarlo (MCObservables, TimeOffset) Double -- ^ computation result
     simulateState modl (ContingentClaim ccb) trials anti = avg <$> replicateM trials singleTrial
           where 
             singleTrial = initialize modl >> 
@@ -104,7 +105,9 @@ class Discretize a where
                   let obsMap' = Map.insert t obs obsMap
                   case mf of
                     Nothing -> process discCFs obsMap' ccs allcfs
-                    Just f -> process discCFs obsMap' ccs (insertCF (f obsMap') allcfs)
+                    Just f -> let newCFs = map ($obsMap') f
+                                  insertCFList xs cfList = foldl' (flip insertCF) cfList xs in
+                        process discCFs obsMap' ccs (insertCFList newCFs allcfs)
 
             process discCFs obsMap (CCProcessor t mf:ccs) [] = do
               evolve modl t anti
@@ -112,7 +115,9 @@ class Discretize a where
               let obsMap' = Map.insert t obs obsMap
               case mf of
                 Nothing -> process discCFs obsMap' ccs []
-                Just f -> process discCFs obsMap' ccs [f obsMap']                          
+                Just f -> let newCFs = map ($obsMap') f
+                              insertCFList xs cfList = foldl' (flip insertCF) cfList xs in
+                        process discCFs obsMap' ccs (insertCFList newCFs [])                       
 
             process discCFs obsMap [] (cf:cfs) = do
               evolve modl (cfTime cf) anti

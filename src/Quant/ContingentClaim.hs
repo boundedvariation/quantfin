@@ -7,6 +7,7 @@ module Quant.ContingentClaim (
   , OptionType (..)
   , CashFlow (..)
   , CCBuilder
+  , TimeOffset
 
   -- * Options and option combinators
   , specify
@@ -39,7 +40,7 @@ type PayoffFunc a = MCMap -> a
 
 data CCProcessor   = CCProcessor  {
                       monitorTime      :: TimeOffset
-                    , payoutFunc       :: Maybe (PayoffFunc CashFlow)
+                    , payoutFunc       :: Maybe [PayoffFunc CashFlow]
                   }
 
 data CashFlow = CashFlow {
@@ -56,11 +57,14 @@ monitor idx t = do
   return $ obsGet (m M.! t) !! idx  --I know, I know.
 
 specify :: CCBuilder ContingentClaim MCMap CashFlow -> ContingentClaim
-specify x = w `mappend` ContingentClaim [CCProcessor (last w') (Just f)]
+specify x = w `mappend` ContingentClaim [CCProcessor (last0 w') (Just [f])]
   where
     w  = runReader (execWriterT x) M.empty
     f  = runReader . liftM fst $ runWriterT x
     w' = map monitorTime $ unCC w
+    last0 [] = 0
+    last0 [y] = y
+    last0 (_:ys) = last0 ys
 
 newtype ContingentClaim = ContingentClaim { unCC :: [CCProcessor] }
 
@@ -133,25 +137,23 @@ geometricAsianOption pc strike obsTimes t = specify $ do
 -- | Scales up a contingent claim by a multiplier.
 multiplier :: Double -> ContingentClaim -> ContingentClaim
 multiplier notional cs = ContingentClaim $ map f (unCC cs)
-    where f (CCProcessor t (Just g)) = CCProcessor t $ Just l
-            where l x = CashFlow t' (p * notional)
-                    where CashFlow t' p = g x
-          f k = k
+    where f (CCProcessor t g) = CCProcessor t $ fmap (fmap (scale.)) g
+          scale (CashFlow dt amt) = CashFlow dt (amt*notional)
 
 -- | Flips the signs in a contingent claim to make it a short position.
 short :: ContingentClaim -> ContingentClaim
 short = multiplier (-1)
 
 -- | Takes an amount and a time and generates a fixed cash flow.
-zcb :: Double -> Double -> ContingentClaim
-zcb amount t = terminalOnly t $ const amount
+zcb :: TimeOffset -> Double -> ContingentClaim
+zcb t amt = specify $ return $ CashFlow t amt
 
 -- | Takes a face value, an interest rate, a payment frequency and makes a fixed bond
 fixedBond :: Double -> Double -> Double -> Int -> ContingentClaim
 fixedBond faceVal intRate freq pmts = zcb faceVal (fromIntegral pmts * freq) 
                                    <> mconcat (map f [1..pmts])
   where
-    f = zcb (faceVal * intRate * freq) . fromIntegral 
+    f x = zcb (fromIntegral x * freq) (faceVal * intRate * freq) 
 
 -- | Takes a time to maturity and generates a forward contract.
 forwardContract :: Double -> ContingentClaim
@@ -178,7 +180,15 @@ combine :: ContingentClaim -> ContingentClaim -> ContingentClaim
 combine (ContingentClaim x) (ContingentClaim y) = ContingentClaim $ combine' x y
   where
     combine' (cc1:ccs1) (cc2:ccs2)
-      | monitorTime cc1 >= monitorTime cc2 = cc2 : combine' (cc1:ccs1) ccs2
+      | monitorTime cc1 == monitorTime cc2 = let
+          (CCProcessor t mf)  = cc1
+          (CCProcessor _ mf') = cc2 in
+            case mf of
+              Nothing -> cc2 : combine' ccs1 ccs2
+              Just a  -> case mf' of
+                Nothing -> cc1 : combine' ccs1 ccs2
+                Just b  -> CCProcessor t (Just (a ++ b)) : combine' ccs1 ccs2
+      | monitorTime cc1 > monitorTime cc2 = cc2 : combine' (cc1:ccs1) ccs2
       | otherwise = cc1 : combine' ccs1 (cc2:ccs2)
     combine' [] [] = []
     combine' cs [] = cs

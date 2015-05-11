@@ -30,12 +30,15 @@ black = Black
 			baseYC  --discount function
 
 --make a vanilla put, struck at 100, maturing at time 1
-vanopt = vanillaOption Call 100 1
+vanopt = vanillaOption Call 100 1 --built in function
+vanopt' = specify $ do
+	x <- monitor 0 1
+	return $ CashFlow 1 (max (x - 100) 0) --roll your own
 
 --Run a Monte Carlo on opt in a a black model with 10000 trials
 vanoptPrice = quickSim black vanopt 10000 
 
---Make a call spread with a 100 unit notional
+--Make a call spread with a 100 unit notional, using some handy combinators.
 cs = multiplier 100 
    $ vanillaOption Call 100 1 <> short (vanillaOption Call 120 1) 
 
@@ -65,7 +68,10 @@ heston = Heston
 csHeston = quickSimAnti heston cs 10000 
 
 --create an option that pays off based on the square of its underlying
-squareOpt = terminalOnly 1 $ \x -> x*x  
+squareOpt = terminalOnly 1 $ \x -> x*x  --using the built in function
+squareOpt' = specify $ do --roll your own
+	x <- monitor 0 1
+	return $ CashFlow 1 $ x*x
 squareOptPrice = quickSimAnti heston squareOpt 10000
 
 --create an option with a bizarre payoff
