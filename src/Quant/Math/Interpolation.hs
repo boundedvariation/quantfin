@@ -1,5 +1,6 @@
 module Quant.Math.Interpolation (
     linearInterpolator
+  , logLinearInterpolator
   , linearVarianceInterpolator
   , cSplineInterpolator
   , Interpolator1d
@@ -20,6 +21,9 @@ linearInterpolator (x1:x2:xs) (y1:y2:ys) x
           wt1 = (x2-x) / (x2-x1)
           wt2 = (x-x1) / (x2-x1)
 linearInterpolator _ [y] _ = y
+
+logLinearInterpolator :: Interpolator1d
+logLinearInterpolator x1 x2 x = exp $ linearInterpolator x1 (map log x2) x
 
 linearVarianceInterpolator :: Interpolator1d
 linearVarianceInterpolator xs ys = linearInterpolator xs 
