@@ -38,10 +38,10 @@ type MCMap = M.Map TimeOffset MCObservables
 type PayoffFunc a = MCMap -> a
 
 
-data CCProcessor   = CCProcessor  {
+data CCProcessor = CCProcessor  {
                       monitorTime      :: TimeOffset
                     , payoutFunc       :: Maybe [PayoffFunc CashFlow]
-                  }
+}
 
 data CashFlow = CashFlow {
     cfTime   :: TimeOffset
@@ -62,6 +62,7 @@ specify x = w `mappend` ContingentClaim [CCProcessor (last0 w') (Just [f])]
     w  = runReader (execWriterT x) M.empty
     f  = runReader . liftM fst $ runWriterT x
     w' = map monitorTime $ unCC w
+    -- Equivalent to Prelude's last, but with a default of zero
     last0 [] = 0
     last0 [y] = y
     last0 (_:ys) = last0 ys
@@ -156,26 +157,28 @@ fixedBond faceVal intRate freq pmts = zcb faceVal (fromIntegral pmts * freq)
     f x = zcb (fromIntegral x * freq) (faceVal * intRate * freq) 
 
 -- | Takes a time to maturity and generates a forward contract.
-forwardContract :: Double -> ContingentClaim
-forwardContract t = terminalOnly t id
+forwardContract :: TimeOffset -> ContingentClaim
+forwardContract t = specify $ do
+  x <- monitor 0 t
+  return $ CashFlow t x
 
 -- | A call spread is a long position in a low-strike call
 --and a short position in a high strike call.
-callSpread :: Double -> Double -> Double -> ContingentClaim
+callSpread :: Double -> Double -> TimeOffset -> ContingentClaim
 callSpread lowStrike highStrike t = mappend (vanillaOption Call lowStrike t) 
                                             (short $ vanillaOption Call highStrike t)
 
 -- | A put spread is a long position in a high strike put
 --and a short position in a low strike put.
-putSpread :: Double -> Double -> Double -> ContingentClaim
+putSpread :: Double -> Double -> TimeOffset -> ContingentClaim
 putSpread lowStrike highStrike t = mappend (vanillaOption Put highStrike t) 
                                            (short $ vanillaOption Put lowStrike t)
 
 -- | A straddle is a put and a call with the same time to maturity / strike.
-straddle :: Double -> Double -> ContingentClaim
+straddle :: Double -> TimeOffset -> ContingentClaim
 straddle strike t = vanillaOption Put strike t <> vanillaOption Call strike t
 
--- | Just combines two contingent claims into one. 
+-- | Combines two contingent claims into one. 
 combine :: ContingentClaim -> ContingentClaim -> ContingentClaim
 combine (ContingentClaim x) (ContingentClaim y) = ContingentClaim $ combine' x y
   where
