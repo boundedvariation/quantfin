@@ -40,7 +40,7 @@ instance Discretize Heston where
           s' = sState * exp (grwth `op` (resid1*sqrt (vState*t)))
         put (Observables [s', v'], t2)
 
-    discounter (Heston _ _ _ _ _ _ _ d) t = return $ disc d t
+    discount (Heston _ _ _ _ _ _ _ d) t = disc d t
 
     forwardGen (Heston _ _ _ _ _ _ fg _) t2 = do
         t1 <- gets snd

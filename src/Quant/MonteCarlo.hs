@@ -66,7 +66,11 @@ class Discretize a where
               evolve mdl t2 anti
 
     -- | Stateful discounting function, takes a model and a time, and returns a vector of results.
-    discounter :: Discretize a => a -> TimeOffset -> MonteCarlo (MCObservables, TimeOffset) Double
+    discountState :: Discretize a => a -> TimeOffset -> MonteCarlo (MCObservables, TimeOffset) Double
+    discountState m t = return $ discount m t
+
+    -- | Non-stateful discounting function...might need to find a better place to put this.
+    discount :: Discretize a => a -> TimeOffset -> Double
 
     -- | Stateful forward generator for a given model at a certain time.
     forwardGen :: Discretize a => a -> TimeOffset -> MonteCarlo (MCObservables, TimeOffset) Double
@@ -97,7 +101,7 @@ class Discretize a where
             process discCFs obsMap c@(CCProcessor t mf:ccs) allcfs@(CashFlow cft amt:cfs) = 
               if t > cft then do
                   evolve modl cft anti
-                  d <- discounter modl cft
+                  d <- discountState modl cft
                   process (discCFs+d*amt) obsMap c cfs
               else do
                   evolve modl t anti
@@ -121,7 +125,7 @@ class Discretize a where
 
             process discCFs obsMap [] (cf:cfs) = do
               evolve modl (cfTime cf) anti
-              d <- discounter modl $ cfTime cf
+              d <- discountState modl $ cfTime cf
               process (discCFs+d*cfAmount cf) obsMap [] cfs
 
             process discCFs _ _ _ = return discCFs

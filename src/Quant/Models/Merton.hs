@@ -47,7 +47,7 @@ instance Discretize Merton where
                 | otherwise = stateVal * exp (grwth + normResid1*vol + jumpterm)
         put (Observables [s'], t2)
 
-    discounter (Merton _ _ _ _ _ _ dsc) t = return $ disc dsc t
+    discount (Merton _ _ _ _ _ _ dsc) t = disc dsc t
 
     forwardGen (Merton _ _ _ _ _ fg _) t2 = do
         t1 <- gets snd

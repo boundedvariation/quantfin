@@ -43,7 +43,7 @@ instance Discretize Black where
                 return $ stateVal * exp (grwth + resid*vol)
         put (Observables [postVal], t2)
 
-    discounter (Black _ _ _ dsc) t = return $ disc dsc t
+    discount (Black _ _ _ dsc) t = disc dsc t
 
     forwardGen (Black _ _ fg _) t2 = do
       (_, t1) <- get

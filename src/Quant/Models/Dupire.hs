@@ -31,7 +31,7 @@ instance Discretize Dupire where
                | otherwise = stateVal * exp (grwth - normResid*vol)
         put (Observables [s'], t2)
 
-    discounter (Dupire _ _ _ dsc) t = return $ disc dsc t
+    discount (Dupire _ _ _ dsc) t = disc dsc t
 
     forwardGen (Dupire _ _ fg _) t2 = do
         t1 <- gets snd
