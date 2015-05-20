@@ -2,7 +2,7 @@
 module Quant.Types (
     CashFlow(..)
   , Observables(..)
-  , MCObservables(..)
+  , MCObservables
   , OptionType(..)
   ) where
 
