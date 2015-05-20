@@ -1,17 +1,3 @@
-module Quant.Test (
-	baseYC
-  ,	vanopt
-  , vanoptPrice
-  , cs
-  , csPrice
-  , callSpreadAnti
-  , bizarre
-  , bizarrePrice
-  , squareOpt
-  , squareOptPrice
-  , heston
-	)
-where
 
 import Quant.Time
 import Data.Monoid
@@ -84,3 +70,9 @@ bizarre = specify $ do
   return $ CashFlow (Time 4) $ x ^ 3 / y ^ 2 - 3 * z --payoff @ time 4
 bizarrePrice = quickSimAnti black bizarre 10000
 
+main = do
+	print vanoptPrice
+	print csPrice
+	print csHeston
+	print squareOptPrice
+	print bizarrePrice
