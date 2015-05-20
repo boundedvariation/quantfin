@@ -5,6 +5,7 @@ module Quant.Models.Merton (
     Merton (..)
 ) where
 
+import Quant.Time
 import Data.Random
 import Data.Random.Distribution.Poisson
 import Control.Monad.State
@@ -31,16 +32,17 @@ data Merton = forall a b . (YieldCurve a, YieldCurve b) => Merton {
             --addon = exp $ (intensity * t :+ 0) * (-i*k*(inner1 - 1) + inner2 - 1)
 
 instance Discretize Merton where
-    initialize (Merton s _ _ _ _ _ _) = put (Observables [s], 0)
+    initialize (Merton s _ _ _ _ _ _) = put (Observables [s], Time 0)
 
     evolve' m@(Merton _ vol intensity mu sig _ _) t2 anti = do
         (Observables (stateVal:_), t1) <- get
         fwd <- forwardGen m t2
         let correction = exp (mu + sig*sig /2.0) - 1
-            grwth = (fwd - vol*vol/2 - intensity * correction) * (t2-t1)
+            grwth = (fwd - vol*vol/2 - intensity * correction) * t
+            t = timeDiff t1 t2
         normResid1 <- lift stdNormal
         normResid2 <- lift stdNormal
-        poissonResid <- lift $ integralPoisson (intensity * (t2-t1)) :: MonteCarlo (MCObservables, Double) Int
+        poissonResid <- lift $ integralPoisson (intensity * t) :: MonteCarlo (MCObservables, Time) Int
         let  poisson' = fromIntegral poissonResid
              jumpterm = mu*poisson'+sig*sqrt poisson' * normResid2
              s' | anti      = stateVal * exp (grwth - normResid1*vol + jumpterm)

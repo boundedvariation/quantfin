@@ -19,6 +19,7 @@ import Data.Random
 import Control.Applicative
 import Control.Monad.State
 import Data.Functor.Identity
+import Quant.Time
 import Data.RVar
 import Data.Foldable (foldl')
 import System.Random.Mersenne.Pure64
@@ -48,38 +49,38 @@ class Discretize a where
 
     -- | Initializes a Monte Carlo simulation for a given number of runs.
     initialize :: Discretize a => a   -- ^ Model
-                               -> MonteCarlo (MCObservables, TimeOffset) ()
+                               -> MonteCarlo (MCObservables, Time) ()
 
     -- | Evolves the internal states of the MC variables between two times.
     evolve :: Discretize a => a            -- ^ Model
-                           -> TimeOffset   -- ^ time to evolve to
+                           -> Time         -- ^ time to evolve to
                            -> Bool         -- whether or not to use flipped variates
-                           -> MonteCarlo (MCObservables, TimeOffset) ()
+                           -> MonteCarlo (MCObservables, Time) ()
     evolve mdl t2 anti = do
         (_, t1) <- get
         let ms = maxStep mdl
         unless (t2==t1) $
-          if (t2-t1) < ms then 
+          if timeDiff t1 t2 < ms then 
               evolve' mdl t2 anti
           else do
-              evolve' mdl (t1 + ms) anti
+              evolve' mdl (timeOffset t1 ms) anti
               evolve mdl t2 anti
 
     -- | Stateful discounting function, takes a model and a time, and returns a vector of results.
-    discountState :: Discretize a => a -> TimeOffset -> MonteCarlo (MCObservables, TimeOffset) Double
+    discountState :: Discretize a => a -> Time -> MonteCarlo (MCObservables, Time) Double
     discountState m t = return $ discount m t
 
     -- | Non-stateful discounting function...might need to find a better place to put this.
-    discount :: Discretize a => a -> TimeOffset -> Double
+    discount :: Discretize a => a -> Time -> Double
 
     -- | Stateful forward generator for a given model at a certain time.
-    forwardGen :: Discretize a => a -> TimeOffset -> MonteCarlo (MCObservables, TimeOffset) Double
+    forwardGen :: Discretize a => a -> Time -> MonteCarlo (MCObservables, Time) Double
 
     -- | Internal function to evolve a model to a given time.
     evolve' :: Discretize a => a          -- ^ model
-                            -> TimeOffset -- ^ time to evolve to
+                            -> Time       -- ^ time to evolve to
                             -> Bool       -- ^ whether or not to use flipped variates
-                            -> MonteCarlo (MCObservables, TimeOffset) () -- ^ computation result
+                            -> MonteCarlo (MCObservables, Time) () -- ^ computation result
 
     -- | Determines the maximum size time-step for discretization purposes. Defaults to 1/250.
     maxStep :: Discretize a => a -> Double
@@ -91,7 +92,7 @@ class Discretize a where
         -> ContingentClaim         -- ^ compilied basket of claims
         -> Int                     -- ^ number of trials
         -> Bool                    -- ^ antithetic?
-        -> MonteCarlo (MCObservables, TimeOffset) Double -- ^ computation result
+        -> MonteCarlo (MCObservables, Time) Double -- ^ computation result
     simulateState modl (ContingentClaim ccb) trials anti = avg <$> replicateM trials singleTrial
           where 
             singleTrial = initialize modl >> 
@@ -146,7 +147,7 @@ class Discretize a where
                              -> Int                -- ^ trials
                              -> Bool               -- ^ whether to use antithetic variables
                              -> Double             -- ^ final value
-    runSimulation modl ccs seed trials anti = runMC run seed (Observables [], 0)
+    runSimulation modl ccs seed trials anti = runMC run seed (Observables [], Time 0)
        where
             run = simulateState modl ccs trials anti
 

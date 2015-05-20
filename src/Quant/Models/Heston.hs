@@ -6,6 +6,7 @@ module Quant.Models.Heston (
     Heston (..)
 ) where
 
+import Quant.Time
 import Quant.YieldCurve
 import Data.Random
 import Control.Monad.State
@@ -24,13 +25,13 @@ data Heston = forall a b  . (YieldCurve a, YieldCurve b) => Heston {
   , hestonDisc       :: b }     -- ^ 'YieldCurve' to generate discounts
 
 instance Discretize Heston where
-    initialize (Heston s v0 _ _ _ _ _ _) = put (Observables [s, v0], 0)
+    initialize (Heston s v0 _ _ _ _ _ _) = put (Observables [s, v0], Time 0)
 
     evolve' h@(Heston _ _ vf l rho eta _ _) t2 anti = do
         (Observables (sState:vState:_), t1) <- get
         fwd <- forwardGen h t2
-        let grwth = (fwd - vState/2) * (t2-t1)
-            t = t2-t1
+        let grwth = (fwd - vState/2) * t
+            t = timeDiff t1 t2
         resid1  <- lift stdNormal
         resid2' <- lift stdNormal
         let 

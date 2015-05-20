@@ -6,6 +6,7 @@ module Quant.Models.Black (
     Black (..)
 ) where
 
+import Quant.Time
 import Quant.YieldCurve
 import Data.Random
 import Control.Monad.State
@@ -29,12 +30,12 @@ data Black = forall a b  . (YieldCurve a, YieldCurve b) => Black {
             --logs = log s :+ 0
 
 instance Discretize Black where
-    initialize (Black s _ _ _)  = put (Observables [s], 0)
+    initialize (Black s _ _ _)  = put (Observables [s], Time 0)
 
     evolve' b@(Black _ vol _ _) t2 anti = do
         (Observables (stateVal:_), t1) <- get
         fwd <- forwardGen b t2
-        let grwth = (fwd - vol*vol/2) * (t2-t1)
+        let  grwth = (fwd - vol*vol/2) * timeDiff t1 t2
         postVal <- do
              resid <- lift stdNormal
              if anti then
