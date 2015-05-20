@@ -69,6 +69,7 @@ class Discretize a where
     -- | Stateful discounting function, takes a model and a time, and returns a vector of results.
     discountState :: Discretize a => a -> Time -> MonteCarlo (MCObservables, Time) Double
     discountState m t = return $ discount m t
+    {-# INLINE discountState #-}
 
     -- | Non-stateful discounting function...might need to find a better place to put this.
     discount :: Discretize a => a -> Time -> Double
@@ -85,6 +86,7 @@ class Discretize a where
     -- | Determines the maximum size time-step for discretization purposes. Defaults to 1/250.
     maxStep :: Discretize a => a -> Double
     maxStep _ = 1/250
+    {-# INLINE maxStep #-}
 
     -- | Perform a simulation of a compiled basket of contingent claims.
     simulateState :: Discretize a => 
