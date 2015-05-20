@@ -62,7 +62,7 @@ library
                        Quant.Models.Dupire
                        Quant.Models.Heston
                        Quant.Models.Processes
-                       Quant.RNG.MWC64X
+                       --Quant.RNG.MWC64X
                        Quant.MonteCarlo
                        Quant.ContingentClaim
                        Quant.Types
