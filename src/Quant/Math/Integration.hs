@@ -14,6 +14,7 @@ midpoint intervals f lBound uBound = dx * sum (map f points)
     where
         dx = (uBound - lBound) / fromIntegral intervals
         points = take intervals $ iterate (+dx) (lBound+dx/2)
+{-# INLINE midpoint #-}
 
 -- | Trapezoidal integration.
 trapezoid :: Int -> Integrator
@@ -21,7 +22,9 @@ trapezoid intervals f lBound uBound = dx * ((f lBound + f uBound) / 2 + sum (map
     where
         dx = (uBound - lBound) / fromIntegral intervals
         points = take (intervals-1) $ iterate (+dx) (lBound+dx)
+{-# INLINE trapezoid #-}
 
 -- | Integration using Simpson's rule.
 simpson :: Int -> Integrator
 simpson intervals f l u =( 2 * midpoint intervals f l u  + trapezoid intervals f l u ) / 3
+{-# INLINE simpson #-}

@@ -38,3 +38,4 @@ tdmaSolver aL bL cL dL = V.toList $
                 xi1 <- M.read xn $ x+1
                 M.write xn x $ di - ci*xi1
             V.unsafeFreeze xn
+{-# INLINE tdmaSolver #-}

@@ -33,6 +33,7 @@ data Merton = forall a b . (YieldCurve a, YieldCurve b) => Merton {
 
 instance Discretize Merton where
     initialize (Merton s _ _ _ _ _ _) = put (Observables [s], Time 0)
+    {-# INLINE initialize #-}
 
     evolve' m@(Merton _ vol intensity mu sig _ _) t2 anti = do
         (Observables (stateVal:_), t1) <- get
@@ -48,9 +49,12 @@ instance Discretize Merton where
              s' | anti      = stateVal * exp (grwth - normResid1*vol + jumpterm)
                 | otherwise = stateVal * exp (grwth + normResid1*vol + jumpterm)
         put (Observables [s'], t2)
+    {-# INLINE evolve' #-}
 
     discount (Merton _ _ _ _ _ _ dsc) t = disc dsc t
+    {-# INLINE discount #-}
 
     forwardGen (Merton _ _ _ _ _ fg _) t2 = do
         t1 <- gets snd
         return $ forward fg t1 t2
+    {-# INLINE forwardGen #-}

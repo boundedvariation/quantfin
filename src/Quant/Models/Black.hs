@@ -31,6 +31,7 @@ data Black = forall a b  . (YieldCurve a, YieldCurve b) => Black {
 
 instance Discretize Black where
     initialize (Black s _ _ _)  = put (Observables [s], Time 0)
+    {-# INLINE initialize #-}
 
     evolve' b@(Black _ vol _ _) t2 anti = do
         (Observables (stateVal:_), t1) <- get
@@ -43,11 +44,14 @@ instance Discretize Black where
              else
                 return $ stateVal * exp (grwth + resid*vol)
         put (Observables [postVal], t2)
+    {-# INLINE evolve' #-}
 
     discount (Black _ _ _ dsc) t = disc dsc t
+    {-# INLINE discount #-}
 
     forwardGen (Black _ _ fg _) t2 = do
       (_, t1) <- get
       return $ forward fg t1 t2
+    {-# INLINE forwardGen #-}
 
     maxStep _ = 100

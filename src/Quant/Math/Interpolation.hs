@@ -21,14 +21,17 @@ linearInterpolator (x1:x2:xs) (y1:y2:ys) x
           wt1 = (x2-x) / (x2-x1)
           wt2 = (x-x1) / (x2-x1)
 linearInterpolator _ [y] _ = y
+{-# INLINE linearInterpolator #-}
 
 logLinearInterpolator :: Interpolator1d
 logLinearInterpolator x1 x2 x = exp $ linearInterpolator x1 (map log x2) x
+{-# INLINE logLinearInterpolator #-}
 
 linearVarianceInterpolator :: Interpolator1d
 linearVarianceInterpolator xs ys = linearInterpolator xs 
                                  . map (\(x, y) -> y*y*x) 
                                  $ zip xs ys
+{-# INLINE linearVarianceInterpolator #-}
 
 cSplineInterpolator :: Interpolator1d
 cSplineInterpolator xs ys x = evalSpline xs ys moments
@@ -53,3 +56,4 @@ cSplineInterpolator xs ys x = evalSpline xs ys moments
             term = x-x1
             h' = x2-x1
     evalSpline _ (y':_) _ = y'
+{-# INLINE cSplineInterpolator #-}

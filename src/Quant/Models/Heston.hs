@@ -26,6 +26,7 @@ data Heston = forall a b  . (YieldCurve a, YieldCurve b) => Heston {
 
 instance Discretize Heston where
     initialize (Heston s v0 _ _ _ _ _ _) = put (Observables [s, v0], Time 0)
+    {-# INLINE initialize #-}
 
     evolve' h@(Heston _ _ vf l rho eta _ _) t2 anti = do
         (Observables (sState:vState:_), t1) <- get
@@ -40,11 +41,14 @@ instance Discretize Heston where
           v' = (sqrt vState `op` (eta/2.0*sqrt t* resid2))^(2 :: Int)-l*(vState-vf)*t-eta*eta*t/4.0
           s' = sState * exp (grwth `op` (resid1*sqrt (vState*t)))
         put (Observables [s', v'], t2)
+    {-# INLINE evolve' #-}
 
     discount (Heston _ _ _ _ _ _ _ d) t = disc d t
+    {-# INLINE discount #-}
 
     forwardGen (Heston _ _ _ _ _ _ fg _) t2 = do
         t1 <- gets snd
         return $ forward fg t1 t2
+    {-# INLINE forwardGen #-}
 
     maxStep _ = 1/12

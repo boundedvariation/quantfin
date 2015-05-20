@@ -21,6 +21,7 @@ data Dupire = forall a b . (YieldCurve a, YieldCurve b) => Dupire {
 
 instance Discretize Dupire where
     initialize (Dupire s _ _ _) = put (Observables [s], Time 0)
+    {-# INLINE initialize #-}
 
     evolve' d@(Dupire _ f _ _) t2 anti = do
         (Observables (stateVal:_), t1) <- get
@@ -31,9 +32,12 @@ instance Discretize Dupire where
         let s' | anti      = stateVal * exp (grwth - normResid*vol)
                | otherwise = stateVal * exp (grwth - normResid*vol)
         put (Observables [s'], t2)
+    {-# INLINE evolve' #-}
 
     discount (Dupire _ _ _ dsc) t = disc dsc t
+    {-# INLINE discount #-}
 
     forwardGen (Dupire _ _ fg _) t2 = do
         t1 <- gets snd
         return $ forward fg t1 t2
+    {-# INLINE forwardGen #-}
