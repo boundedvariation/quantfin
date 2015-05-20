@@ -129,7 +129,7 @@ class Discretize a where
               d <- discountState modl $ cfTime cf
               process (discCFs+d*cfAmount cf) obsMap [] cfs
 
-            process discCFs _ _ _ = return discCFs
+            process discCFs _ _ _ = return $! discCFs
 
             insertCF (CashFlow t amt) (CashFlow t' amt':cfs)
               | t > t' = CashFlow t' amt' : insertCF (CashFlow t amt) cfs
