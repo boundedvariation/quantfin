@@ -47,4 +47,4 @@ instance Discretize Heston where
         t1 <- gets snd
         return $ forward fg t1 t2
 
-    maxStep _ = 1/250
+    maxStep _ = 1/12
