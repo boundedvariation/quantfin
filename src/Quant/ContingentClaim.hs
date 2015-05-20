@@ -30,7 +30,7 @@ module Quant.ContingentClaim (
 )  where
 
 import Control.Monad.Reader
-import Control.Monad.Writer
+import Control.Monad.Writer.Strict
 import Quant.Types
 import Quant.Time
 import qualified Data.Map as M
