@@ -31,9 +31,11 @@ data FlatCurve = FlatCurve Double
 
 instance YieldCurve FlatCurve where
     disc (FlatCurve r) t = exp (-r*timeFromZero t)
+    {-# INLINE disc #-}
 
 -- | 'YieldCurve' that represents the difference between two 'YieldCurve's.
 data NetYC a = NetYC a a
 
 instance YieldCurve a => YieldCurve (NetYC a) where
     disc (NetYC yc1 yc2) t = disc yc1 t / disc yc2 t
+    {-# INLINE disc #-}
