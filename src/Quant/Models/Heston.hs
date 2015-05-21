@@ -40,7 +40,7 @@ instance Discretize Heston where
           resid2 = rho * resid1 + sqrt (1-rho*rho) * resid2'
           v' = (sqrt vState `op` (eta/2.0*sqrt t* resid2))^(2 :: Int)-l*(vState-vf)*t-eta*eta*t/4.0
           s' = sState * exp (grwth `op` (resid1*sqrt (vState*t)))
-        put (Observables [s', v'], t2)
+        put (Observables [s', abs v'], t2)
     {-# INLINE evolve' #-}
 
     discount (Heston _ _ _ _ _ _ _ d) t = disc d t
