@@ -33,7 +33,7 @@ instance Discretize Dupire where
         put (Observables [s'], t2)
     {-# INLINE evolve' #-}
 
-    discount (Dupire _ _ _ dsc) t = disc dsc t
+    discount (Dupire _ _ _ dsc) t = return $ disc dsc t
     {-# INLINE discount #-}
 
     forwardGen (Dupire _ _ fg _) t2 = do

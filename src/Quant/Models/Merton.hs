@@ -50,7 +50,7 @@ instance Discretize Merton where
         put (Observables [s'], t2)
     {-# INLINE evolve' #-}
 
-    discount (Merton _ _ _ _ _ _ dsc) t = disc dsc t
+    discount (Merton _ _ _ _ _ _ dsc) t = return $ disc dsc t
     {-# INLINE discount #-}
 
     forwardGen (Merton _ _ _ _ _ fg _) t2 = do

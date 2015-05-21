@@ -45,7 +45,7 @@ instance Discretize Black where
         put (Observables [postVal], t2)
     {-# INLINE evolve' #-}
 
-    discount (Black _ _ _ dsc) t = disc dsc t
+    discount (Black _ _ _ dsc) t = return $ disc dsc t
     {-# INLINE discount #-}
 
     forwardGen (Black _ _ fg _) t2 = do

@@ -42,7 +42,7 @@ instance Discretize Heston where
         put (Observables [s', abs v'], t2)
     {-# INLINE evolve' #-}
 
-    discount (Heston _ _ _ _ _ _ _ d) t = disc d t
+    discount (Heston _ _ _ _ _ _ _ d) t = return $ disc d t
     {-# INLINE discount #-}
 
     forwardGen (Heston _ _ _ _ _ _ fg _) t2 = do
