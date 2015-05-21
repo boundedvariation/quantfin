@@ -31,6 +31,10 @@ vanopt' = specify $ do
 vanoptPrice :: Double
 vanoptPrice = quickSim black vanopt 100000 
 
+vanoptPrice' :: Double
+vanoptPrice' = quickSim black vanopt' 100000 
+
+
 --Make a call spread with a 100 unit notional, using some handy combinators.
 cs :: ContingentClaim
 cs =  multiplier 100 
@@ -70,11 +74,17 @@ csHeston = quickSimAnti heston cs 100000
 --create an option that pays off based on the square of its underlying
 squareOpt :: ContingentClaim
 squareOpt = terminalOnly (Time 1) $ \x -> x*x  --using the built in function
+
+squareOpt' :: ContingentClaim
 squareOpt' = specify $ do --roll your own
 	x <- monitor (Time 1)
 	return $ CashFlow (Time 1) $ x*x
 squareOptPrice :: Double
 squareOptPrice = quickSimAnti black squareOpt 100000
+
+squareOptPrice' :: Double
+squareOptPrice' = quickSimAnti black squareOpt' 100000
+
 
 --create an option with a bizarre payoff
 bizarre :: ContingentClaim
@@ -82,15 +92,17 @@ bizarre = specify $ do
   x <- monitor (Time 1)   --check the price of asset 0 @ time 1
   y <- monitor (Time 2)   --check the price of asset 0 @ time 2
   z <- monitor (Time 3)   --check the price of asset 0 @ time 3
-  return $ CashFlow (Time 4) $ x ^ 3 / y ^ 2 - 3 * z --payoff @ time 4
+  return $ CashFlow (Time 4) $ sin x * cos y / (z ** sin x) --payoff @ time 4
 bizarrePrice :: Double
 bizarrePrice = quickSimAnti black bizarre 100000
 
 main :: IO ()
 main = do
 	print vanoptPrice
+	print vanoptPrice'
 	print csPrice
 	print callSpreadAnti
-	--print csHeston
+	print csHeston
 	print squareOptPrice
+	print squareOptPrice'
 	print bizarrePrice
