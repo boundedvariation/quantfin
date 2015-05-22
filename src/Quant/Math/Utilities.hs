@@ -1,11 +1,13 @@
 module Quant.Math.Utilities (
     tdmaSolver
+  , cotraverseVec
 ) where
 
 import Control.Monad
 import Control.Monad.ST
 import qualified Data.Vector.Mutable as M
 import qualified Data.Vector as V
+import qualified Data.Vector.Unboxed as U
 
 tdmaSolver :: (Fractional a, Ord a) => [a] -> [a] -> [a] -> [a] -> [a]
 tdmaSolver aL bL cL dL = V.toList $ 
@@ -39,3 +41,9 @@ tdmaSolver aL bL cL dL = V.toList $
                 M.write xn x $ di - ci*xi1
             V.unsafeFreeze xn
 {-# INLINE tdmaSolver #-}
+
+-- | Something similar to cotraverse in the Distributive package,
+--but specialized to unboxed vectors, which are not functors.
+cotraverseVec :: (U.Unbox b1, U.Unbox b, Functor f) =>
+                       (f b1 -> b) -> Int -> f (U.Vector b1) -> U.Vector b
+cotraverseVec f l m = U.map (\i -> f (fmap (U.!i) m)) (U.enumFromN 0 l)
