@@ -43,6 +43,11 @@ import Quant.Types
 import Quant.Time
 import qualified Data.Map as M
 
+-- |Key type for building contingent claims.
+--Monoid instance allows for trivial combinations of
+--contingent claims.
+newtype ContingentClaim a = ContingentClaim { unCC :: [CCProcessor a] }
+
 -- |Contingent claims with one observable.
 type ContingentClaim1 = forall a . Obs1 a => ContingentClaim a
 -- |Contingent claims with two observables.
@@ -52,16 +57,13 @@ type ContingentClaim3 = forall a . Obs3 a => ContingentClaim a
 -- |Contingent claims with four observables.
 type ContingentClaim4 = forall a . Obs4 a => ContingentClaim a
 
-
--- |Key type for building contingent claims.
---Monoid instance allows for trivial combinations of
---contingent claims.
-newtype ContingentClaim a = ContingentClaim { unCC :: [CCProcessor a] }
-
 instance Monoid (ContingentClaim a) where
   mempty  = ContingentClaim []
   mappend = combine
 
+-- |Basic element of a `ContingentClaim`.  Each element contains
+--a Time.  Each Time, the observables are stored in the map.
+--Also, optionally a payout function may be applied at any time step.
 data CCProcessor a = CCProcessor  {
                       monitorTime      :: Time
                     , payoutFunc       :: Maybe [M.Map Time a -> CashFlow]
@@ -93,6 +95,7 @@ monitorGeneric f t = do
   m <- lift ask
   return $ f (m M.! t)
 
+-- |Pulls a ContingentClaim out of the CCBuilder monad.
 specify :: CCBuilder (ContingentClaim a) (M.Map Time a) CashFlow -> ContingentClaim a
 specify x = w `mappend` ContingentClaim [CCProcessor (last0 w') (Just [f])]
   where
