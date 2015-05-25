@@ -43,18 +43,18 @@ import Quant.Types
 import Quant.Time
 import qualified Data.Map as M
 
--- |Key type for building contingent claims.
+-- | Key type for building contingent claims.
 --Monoid instance allows for trivial combinations of
 --contingent claims.
 newtype ContingentClaim a = ContingentClaim { unCC :: [CCProcessor a] }
 
--- |Contingent claims with one observable.
+-- | Contingent claims with one observable.
 type ContingentClaim1 = forall a . Obs1 a => ContingentClaim a
--- |Contingent claims with two observables.
+-- | Contingent claims with two observables.
 type ContingentClaim2 = forall a . Obs2 a => ContingentClaim a
--- |Contingent claims with three observables.
+-- | Contingent claims with three observables.
 type ContingentClaim3 = forall a . Obs3 a => ContingentClaim a
--- |Contingent claims with four observables.
+-- | Contingent claims with four observables.
 type ContingentClaim4 = forall a . Obs4 a => ContingentClaim a
 
 instance Monoid (ContingentClaim a) where
@@ -65,37 +65,44 @@ instance Monoid (ContingentClaim a) where
 --a Time.  Each Time, the observables are stored in the map.
 --Also, optionally a payout function may be applied at any time step.
 data CCProcessor a = CCProcessor  {
-                      monitorTime      :: Time
-                    , payoutFunc       :: Maybe [M.Map Time a -> CashFlow]
+    monitorTime      :: Time
+  , payoutFunc       :: Maybe [M.Map Time a -> CashFlow]
 }
 
 type CCBuilder w r a = WriterT w (Reader r) a
 
+-- | 'monitor' gets the value of the first observable at a given time.
 monitor :: Obs1 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) Double
 monitor = monitor1
 
+-- | 'monitor1' gets the value of the first observable at a given time.
 monitor1 :: Obs1 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) Double
 monitor1 = monitorGeneric get1
 
+-- | 'monitor2' gets the value of the second observable at a given time.
 monitor2 :: Obs2 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) Double
 monitor2 = monitorGeneric get2
 
+-- | 'monitor3' gets the value of the third observable at a given time.
 monitor3 :: Obs3 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) Double
 monitor3 = monitorGeneric get3
 
+-- | 'monitor4' gets the value of the fourth observable at a given time.
 monitor4 :: Obs4 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) Double
 monitor4 = monitorGeneric get4
 
+-- | 'monitor5' gets the value of the fifth observable at a given time.
 monitor5 :: Obs5 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) Double
 monitor5 = monitorGeneric get5
 
+-- | 'monitorGeneric' applies any getter at a given time.
 monitorGeneric :: (a -> Double) -> Time -> CCBuilder (ContingentClaim a) (M.Map Time a) Double
 monitorGeneric f t = do
   tell $ ContingentClaim [CCProcessor t Nothing]
   m <- lift ask
   return $ f (m M.! t)
 
--- |Pulls a ContingentClaim out of the CCBuilder monad.
+-- | Pulls a ContingentClaim out of the CCBuilder monad.
 specify :: CCBuilder (ContingentClaim a) (M.Map Time a) CashFlow -> ContingentClaim a
 specify x = w `mappend` ContingentClaim [CCProcessor (last0 w') (Just [f])]
   where
