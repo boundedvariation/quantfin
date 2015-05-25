@@ -21,6 +21,7 @@ linearInterpolator (x1:x2:xs) (y1:y2:ys) x
           wt1 = (x2-x) / (x2-x1)
           wt2 = (x-x1) / (x2-x1)
 linearInterpolator _ [y] _ = y
+linearInterpolator _ _ _ = error "Empty interpolation list."
 {-# INLINE linearInterpolator #-}
 
 logLinearInterpolator :: Interpolator1d
@@ -56,4 +57,5 @@ cSplineInterpolator xs ys x = evalSpline xs ys moments
             term = x-x1
             h' = x2-x1
     evalSpline _ (y':_) _ = y'
+    evalSpline _ _ _ = error "Empty spline list."
 {-# INLINE cSplineInterpolator #-}
