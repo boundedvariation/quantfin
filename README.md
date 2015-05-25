@@ -26,10 +26,10 @@ black = Black
 			baseYC  --discount function
 
 --make a vanilla put, struck at 100, maturing at time 1
-vanopt :: ContingentClaim
+vanopt :: CC1
 vanopt = vanillaOption Call 100 (Time 1) --built in function
 
-vanopt' :: ContingentClaim
+vanopt' :: CC1
 vanopt' = specify $ do
 	x <- monitor (Time 1)
 	return $ CashFlow (Time 1) (max (x - 100) 0) --roll your own
@@ -43,7 +43,7 @@ vanoptPrice' = quickSim black vanopt' 100000
 
 
 --Make a call spread with a 100 unit notional, using some handy combinators.
-cs :: ContingentClaim
+cs :: CC1
 cs =  multiplier 100 
    $  vanillaOption Call 100 (Time 1) 
    <> short (vanillaOption Call 120 (Time 1)) 
@@ -79,10 +79,10 @@ csHeston :: Double
 csHeston = quickSimAnti heston cs 100000
 
 --create an option that pays off based on the square of its underlying
-squareOpt :: ContingentClaim
+squareOpt :: CC1
 squareOpt = terminalOnly (Time 1) $ \x -> x*x  --using the built in function
 
-squareOpt' :: ContingentClaim
+squareOpt' :: CC1
 squareOpt' = specify $ do --roll your own
 	x <- monitor (Time 1)
 	return $ CashFlow (Time 1) $ x*x
@@ -94,7 +94,7 @@ squareOptPrice' = quickSimAnti black squareOpt' 100000
 
 
 --create an option with a bizarre payoff
-bizarre :: ContingentClaim
+bizarre :: CC1
 bizarre = specify $ do
   x <- monitor (Time 1)   --check the price of asset 0 @ time 1
   y <- monitor (Time 2)   --check the price of asset 0 @ time 2
@@ -103,14 +103,4 @@ bizarre = specify $ do
 bizarrePrice :: Double
 bizarrePrice = quickSimAnti black bizarre 100000
 
-main :: IO ()
-main = do
-	print vanoptPrice
-	print vanoptPrice'
-	print csPrice
-	print callSpreadAnti
-	print csHeston
-	print squareOptPrice
-	print squareOptPrice'
-	print bizarrePrice
 ```
