@@ -6,7 +6,7 @@ module Quant.Time (
   , timeFromZero
   ) where
 
-data Time = Time Double deriving (Eq,Show,Ord)
+data Time = Time {-# UNPACK #-} !Double deriving (Eq,Show,Ord)
 
 timeDiff :: Time -> Time -> Double
 timeDiff (Time x) (Time y) = y - x
