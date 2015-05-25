@@ -1,14 +1,14 @@
 
 module Quant.Models.Processes (
     ProcessSpec (..)
+  , normal
   , lognormal
 ) where
 
-data ProcessSpec = ProcessSpec {
-    procInit    :: Double
-  , procGrowth  :: Double
-  , procElapsed :: Double
-}
+data ProcessSpec = ProcessSpec {-# UNPACK #-} !Double !Double !Double
+
+normal :: ProcessSpec -> Double -> Double -> Double
+normal (ProcessSpec initVal r t) vol normRand = initVal + vol * normRand + r * t
 
 lognormal :: ProcessSpec -> Double -> Double -> Double 
 lognormal (ProcessSpec initVal r t) vol normRand = initVal * exp ( g + sig * normRand )
