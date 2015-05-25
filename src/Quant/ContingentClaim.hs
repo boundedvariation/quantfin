@@ -3,10 +3,10 @@
 module Quant.ContingentClaim (
     -- * Types for modeling contingent claims.
     ContingentClaim (..)
-  , CC1
-  , CC2
-  , CC3
-  , CC4
+  , ContingentClaim1
+  , ContingentClaim2
+  , ContingentClaim3
+  , ContingentClaim4
   , CCProcessor (..)
   , OptionType (..)
   , CashFlow (..)
@@ -38,10 +38,10 @@ import Quant.Types
 import Quant.Time
 import qualified Data.Map as M
 
-type CC1 = forall a . Obs1 a => ContingentClaim a
-type CC2 = forall a . Obs2 a => ContingentClaim a
-type CC3 = forall a . Obs3 a => ContingentClaim a
-type CC4 = forall a . Obs4 a => ContingentClaim a
+type ContingentClaim1 = forall a . Obs1 a => ContingentClaim a
+type ContingentClaim2 = forall a . Obs2 a => ContingentClaim a
+type ContingentClaim3 = forall a . Obs3 a => ContingentClaim a
+type ContingentClaim4 = forall a . Obs4 a => ContingentClaim a
 
 newtype ContingentClaim a = ContingentClaim { unCC :: [CCProcessor a] }
 
