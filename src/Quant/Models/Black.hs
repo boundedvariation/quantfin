@@ -36,13 +36,11 @@ instance Discretize Black Observables1 where
     evolve' b@(Black _ vol _ _) t2 anti = do
         (Observables1 stateVal, t1) <- get
         fwd <- forwardGen b t2
-        let  grwth = (fwd - vol*vol/2) * timeDiff t1 t2
-        postVal <- do
-             resid <- lift stdNormal
-             if anti then
-                return $ stateVal * exp (grwth - resid*vol)
-             else
-                return $ stateVal * exp (grwth + resid*vol)
+        let t = timeDiff t1 t2 
+            grwth = (fwd - vol*vol/2) * t
+        resid <- lift stdNormal
+        let resid' = if anti then -resid else resid
+            postVal = stateVal * exp (grwth + resid'*vol*sqrt t)
         put (Observables1 postVal, t2)
     {-# INLINE evolve' #-}
 

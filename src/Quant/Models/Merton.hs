@@ -46,8 +46,8 @@ instance Discretize Merton Observables1 where
         poissonResid <- lift $ integralPoisson (intensity * t) :: MonteCarlo (Observables1, Time) Int
         let  poisson' = fromIntegral poissonResid
              jumpterm = mu*poisson'+sig*sqrt poisson' * normResid2
-             s' | anti      = stateVal * exp (grwth - normResid1*vol + jumpterm)
-                | otherwise = stateVal * exp (grwth + normResid1*vol + jumpterm)
+             s' | anti      = stateVal * exp (grwth - normResid1*vol*sqrt t + jumpterm)
+                | otherwise = stateVal * exp (grwth + normResid1*vol*sqrt t + jumpterm)
         put (Observables1 s', t2)
     {-# INLINE evolve' #-}
 

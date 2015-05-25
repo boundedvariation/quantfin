@@ -27,10 +27,11 @@ instance Discretize Dupire Observables1 where
         (Observables1 stateVal, t1) <- get
         fwd <- forwardGen d t2
         let vol   = f t1 stateVal
-            grwth = (fwd - vol * vol / 2) * timeDiff t1 t2
+            t     = timeDiff t1 t2
+            grwth = (fwd - vol * vol / 2) * t
         normResid <- lift stdNormal
-        let s' | anti      = stateVal * exp (grwth - normResid*vol)
-               | otherwise = stateVal * exp (grwth - normResid*vol)
+        let s' | anti      = stateVal * exp (grwth - normResid*vol*sqrt t)
+               | otherwise = stateVal * exp (grwth - normResid*vol*sqrt t)
         put (Observables1 s', t2)
     {-# INLINE evolve' #-}
 
