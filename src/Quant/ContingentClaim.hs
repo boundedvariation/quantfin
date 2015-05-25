@@ -60,11 +60,11 @@ data CCProcessor a = CCProcessor  {
 
 type CCBuilder w r a = WriterT w (Reader r) a
 
-monitor :: (Obs1 a) => Time -> CCBuilder (ContingentClaim a) (MCMap a) Double
+monitor :: Obs1 a => Time -> CCBuilder (ContingentClaim a) (MCMap a) Double
 monitor t = do
   tell $ ContingentClaim [CCProcessor t Nothing]
   m <- lift ask
-  return $ get0 (m M.! t)
+  return $ get1 (m M.! t)
 
 specify :: CCBuilder (ContingentClaim a) (MCMap a) CashFlow -> ContingentClaim a
 specify x = w `mappend` ContingentClaim [CCProcessor (last0 w') (Just [f])]
