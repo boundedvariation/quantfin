@@ -14,7 +14,7 @@ import Data.Word
 import Data.Random.Internal.Words
 import System.Random
 
-data MWC64X = MWC64X !Word64 deriving (Eq,Show)
+data MWC64X = MWC64X {-# UNPACK #-} !Word64 deriving (Eq,Show)
 
 randomWord32 :: MWC64X -> (Word32, MWC64X)
 randomWord32 (MWC64X state) = (x `xor` c, MWC64X state')
