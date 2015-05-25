@@ -27,7 +27,7 @@ class YieldCurve a where
 
 -- |A flat curve is just a flat curve with one continuously 
 -- compounded rate at all points on the curve.
-data FlatCurve = FlatCurve Double
+data FlatCurve = FlatCurve {-# UNPACK #-} !Double
 
 instance YieldCurve FlatCurve where
     disc (FlatCurve r) t = exp (-r*timeFromZero t)
