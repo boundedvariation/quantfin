@@ -16,6 +16,7 @@ module Quant.Types (
 
 import Quant.Time
 
+-- | A CashFlow is just a time and an amount.
 data CashFlow = CashFlow {
     cfTime   :: Time
   , cfAmount :: Double
@@ -25,10 +26,15 @@ data CashFlow = CashFlow {
 -- | Type for Put or Calls
 data OptionType = Put | Call deriving (Eq,Show)
 
+-- | Single-observable container.
 data Observables1 = Observables1 {-# UNPACK #-} !Double
+-- | Two observable container.
 data Observables2 = Observables2 {-# UNPACK #-} !Double !Double
+-- | Three observable container.
 data Observables3 = Observables3 {-# UNPACK #-} !Double !Double !Double
+-- | Four observable container.
 data Observables4 = Observables4 {-# UNPACK #-} !Double !Double !Double !Double
+-- | Five observable container.
 data Observables5 = Observables5 {-# UNPACK #-} !Double !Double !Double !Double !Double
 
 class Obs1 a where
