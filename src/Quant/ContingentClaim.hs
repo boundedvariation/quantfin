@@ -15,6 +15,11 @@ module Quant.ContingentClaim (
   -- * Options and option combinators
   , specify
   , monitor
+  , monitor1
+  , monitor2
+  , monitor3
+  , monitor4
+  , monitor5
   , vanillaOption
   , binaryOption
   , straddle
@@ -38,35 +43,57 @@ import Quant.Types
 import Quant.Time
 import qualified Data.Map as M
 
+-- |Contingent claims with one observable.
 type ContingentClaim1 = forall a . Obs1 a => ContingentClaim a
+-- |Contingent claims with two observables.
 type ContingentClaim2 = forall a . Obs2 a => ContingentClaim a
+-- |Contingent claims with three observables.
 type ContingentClaim3 = forall a . Obs3 a => ContingentClaim a
+-- |Contingent claims with four observables.
 type ContingentClaim4 = forall a . Obs4 a => ContingentClaim a
 
+
+-- |Key type for building contingent claims.
+--Monoid instance allows for trivial combinations of
+--contingent claims.
 newtype ContingentClaim a = ContingentClaim { unCC :: [CCProcessor a] }
 
 instance Monoid (ContingentClaim a) where
   mempty  = ContingentClaim []
   mappend = combine
 
-type MCMap a = M.Map Time a
-type PayoffFunc a b = MCMap a -> b
-
-
 data CCProcessor a = CCProcessor  {
                       monitorTime      :: Time
-                    , payoutFunc       :: Maybe [PayoffFunc a CashFlow]
+                    , payoutFunc       :: Maybe [M.Map Time a -> CashFlow]
 }
 
 type CCBuilder w r a = WriterT w (Reader r) a
 
-monitor :: Obs1 a => Time -> CCBuilder (ContingentClaim a) (MCMap a) Double
-monitor t = do
+monitor :: Obs1 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) Double
+monitor = monitor1
+
+monitor1 :: Obs1 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) Double
+monitor1 = monitorGeneric get1
+
+monitor2 :: Obs2 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) Double
+monitor2 = monitorGeneric get2
+
+monitor3 :: Obs3 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) Double
+monitor3 = monitorGeneric get3
+
+monitor4 :: Obs4 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) Double
+monitor4 = monitorGeneric get4
+
+monitor5 :: Obs5 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) Double
+monitor5 = monitorGeneric get5
+
+monitorGeneric :: (a -> Double) -> Time -> CCBuilder (ContingentClaim a) (M.Map Time a) Double
+monitorGeneric f t = do
   tell $ ContingentClaim [CCProcessor t Nothing]
   m <- lift ask
-  return $ get1 (m M.! t)
+  return $ f (m M.! t)
 
-specify :: CCBuilder (ContingentClaim a) (MCMap a) CashFlow -> ContingentClaim a
+specify :: CCBuilder (ContingentClaim a) (M.Map Time a) CashFlow -> ContingentClaim a
 specify x = w `mappend` ContingentClaim [CCProcessor (last0 w') (Just [f])]
   where
     w  = runReader (execWriterT x) M.empty
