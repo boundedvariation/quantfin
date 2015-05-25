@@ -1,13 +1,14 @@
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Quant.Models.Dupire (
     Dupire (..)
 ) where
 
 import Quant.Time
+import Quant.Types
 import Data.Random
 import Control.Monad.State
-import Quant.ContingentClaim
 import Quant.MonteCarlo
 import Quant.YieldCurve
 
@@ -18,19 +19,19 @@ data Dupire = forall a b . (YieldCurve a, YieldCurve b) => Dupire {
  , mertonForwardGen  ::  a  -- ^ 'YieldCurve' to generate forwards
  , mertonDiscounter  ::  b } -- ^ 'YieldCurve' to generate discount rates
 
-instance Discretize Dupire where
-    initialize (Dupire s _ _ _) = put (Observables [s], Time 0)
+instance Discretize Dupire Observables1 where
+    initialize (Dupire s _ _ _) = put (Observables1 s, Time 0)
     {-# INLINE initialize #-}
 
     evolve' d@(Dupire _ f _ _) t2 anti = do
-        (Observables (stateVal:_), t1) <- get
+        (Observables1 stateVal, t1) <- get
         fwd <- forwardGen d t2
         let vol   = f t1 stateVal
             grwth = (fwd - vol * vol / 2) * timeDiff t1 t2
         normResid <- lift stdNormal
         let s' | anti      = stateVal * exp (grwth - normResid*vol)
                | otherwise = stateVal * exp (grwth - normResid*vol)
-        put (Observables [s'], t2)
+        put (Observables1 s', t2)
     {-# INLINE evolve' #-}
 
     discount (Dupire _ _ _ dsc) t = return $ disc dsc t

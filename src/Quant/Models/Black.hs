@@ -1,16 +1,17 @@
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 
 module Quant.Models.Black (
     Black (..)
 ) where
 
+import Quant.Types
 import Quant.Time
 import Quant.YieldCurve
 import Data.Random
 import Control.Monad.State
 import Quant.MonteCarlo
-import Quant.ContingentClaim
 
 -- | 'Black' represents a Black-Scholes model.
 data Black = forall a b  . (YieldCurve a, YieldCurve b) => Black {
@@ -28,12 +29,12 @@ data Black = forall a b  . (YieldCurve a, YieldCurve b) => Black {
             --vol' = vol :+ 0
             --logs = log s :+ 0
 
-instance Discretize Black where
-    initialize (Black s _ _ _)  = put (Observables [s], Time 0)
+instance Discretize Black Observables1 where
+    initialize (Black s _ _ _)  = put (Observables1 s, Time 0)
     {-# INLINE initialize #-}
 
     evolve' b@(Black _ vol _ _) t2 anti = do
-        (Observables (stateVal:_), t1) <- get
+        (Observables1 stateVal, t1) <- get
         fwd <- forwardGen b t2
         let  grwth = (fwd - vol*vol/2) * timeDiff t1 t2
         postVal <- do
@@ -42,7 +43,7 @@ instance Discretize Black where
                 return $ stateVal * exp (grwth - resid*vol)
              else
                 return $ stateVal * exp (grwth + resid*vol)
-        put (Observables [postVal], t2)
+        put (Observables1 postVal, t2)
     {-# INLINE evolve' #-}
 
     discount (Black _ _ _ dsc) t = return $ disc dsc t

@@ -1,9 +1,13 @@
+{-# LANGUAGE RankNTypes #-}
+
 module Quant.ContingentClaim (
     -- * Types for modeling contingent claims.
     ContingentClaim (..)
+  , CC1
+  , CC2
+  , CC3
+  , CC4
   , CCProcessor (..)
-  , Observables (..)
-  , MCObservables
   , OptionType (..)
   , CashFlow (..)
   , CCBuilder
@@ -11,7 +15,6 @@ module Quant.ContingentClaim (
   -- * Options and option combinators
   , specify
   , monitor
-  , monitorByNum
   , vanillaOption
   , binaryOption
   , straddle
@@ -35,28 +38,35 @@ import Quant.Types
 import Quant.Time
 import qualified Data.Map as M
 
-type MCMap = M.Map Time MCObservables
-type PayoffFunc a = MCMap -> a
+type CC1 = forall a . Obs1 a => ContingentClaim a
+type CC2 = forall a . Obs2 a => ContingentClaim a
+type CC3 = forall a . Obs3 a => ContingentClaim a
+type CC4 = forall a . Obs4 a => ContingentClaim a
+
+newtype ContingentClaim a = ContingentClaim { unCC :: [CCProcessor a] }
+
+instance Monoid (ContingentClaim a) where
+  mempty  = ContingentClaim []
+  mappend = combine
+
+type MCMap a = M.Map Time a
+type PayoffFunc a b = MCMap a -> b
 
 
-data CCProcessor = CCProcessor  {
+data CCProcessor a = CCProcessor  {
                       monitorTime      :: Time
-                    , payoutFunc       :: Maybe [PayoffFunc CashFlow]
+                    , payoutFunc       :: Maybe [PayoffFunc a CashFlow]
 }
-
 
 type CCBuilder w r a = WriterT w (Reader r) a
 
-monitor :: Time -> CCBuilder ContingentClaim MCMap Double
-monitor = monitorByNum 0
-
-monitorByNum :: Int -> Time -> CCBuilder ContingentClaim MCMap Double
-monitorByNum idx t = do
+monitor :: (Obs1 a) => Time -> CCBuilder (ContingentClaim a) (MCMap a) Double
+monitor t = do
   tell $ ContingentClaim [CCProcessor t Nothing]
   m <- lift ask
-  return $ obsGet (m M.! t) !! idx  --I know, I know.
+  return $ get0 (m M.! t)
 
-specify :: CCBuilder ContingentClaim MCMap CashFlow -> ContingentClaim
+specify :: CCBuilder (ContingentClaim a) (MCMap a) CashFlow -> ContingentClaim a
 specify x = w `mappend` ContingentClaim [CCProcessor (last0 w') (Just [f])]
   where
     w  = runReader (execWriterT x) M.empty
@@ -67,11 +77,6 @@ specify x = w `mappend` ContingentClaim [CCProcessor (last0 w') (Just [f])]
     last0 [y] = y
     last0 (_:ys) = last0 ys
 
-newtype ContingentClaim = ContingentClaim { unCC :: [CCProcessor] }
-
-instance Monoid ContingentClaim where
-  mempty  = ContingentClaim []
-  mappend = combine
 
 -- | Function to generate a vanilla put/call style payout.
 vanillaPayout :: OptionType  -- ^ Put or Call
@@ -94,23 +99,23 @@ binaryPayout pc strike amount x = case pc of
 
 -- | Takes a maturity time and a function and generates a ContingentClaim 
 --dependent only on the terminal value of the observable.
-terminalOnly :: Time -> (Double -> Double) -> ContingentClaim
+terminalOnly :: Obs1 a => Time -> (Double -> Double) -> ContingentClaim a
 terminalOnly t g = specify $ do
   x <- monitor t
   return $ CashFlow t $ g x
 
 -- | Takes an OptionType, a strike, and a time to maturity and generates a vanilla option.
-vanillaOption :: OptionType -> Double -> Time -> ContingentClaim
+vanillaOption :: Obs1 a => OptionType -> Double -> Time -> ContingentClaim a
 vanillaOption pc strike t = terminalOnly t $ vanillaPayout pc strike
 
 -- | Takes an OptionType, a strike, a payout amount and a time to 
 --maturity and generates a vanilla option.
-binaryOption :: OptionType -> Double -> Double -> Time -> ContingentClaim
+binaryOption :: Obs1 a => OptionType -> Double -> Double -> Time -> ContingentClaim a
 binaryOption pc strike amount t = terminalOnly t $ binaryPayout pc strike amount
 
 -- | Takes an OptionType, a strike, observation times, time to
 --maturity and generates an arithmetic Asian option.
-arithmeticAsianOption :: OptionType -> Double -> [Time] -> Time -> ContingentClaim
+arithmeticAsianOption :: Obs1 a => OptionType -> Double -> [Time] -> Time -> ContingentClaim a
 arithmeticAsianOption pc strike obsTimes t = specify $ do
   x <- mapM monitor obsTimes
   let avg = sum x / fromIntegral (length obsTimes)
@@ -118,57 +123,57 @@ arithmeticAsianOption pc strike obsTimes t = specify $ do
 
 -- | Takes an OptionType, a strike, observation times, time to
 --maturity and generates an arithmetic Asian option.
-geometricAsianOption :: OptionType -> Double -> [Time] -> Time -> ContingentClaim
+geometricAsianOption :: Obs1 a => OptionType -> Double -> [Time] -> Time -> ContingentClaim a
 geometricAsianOption pc strike obsTimes t = specify $ do
   x <- mapM monitor obsTimes
   let avg = product x ** (1 / fromIntegral (length obsTimes))
   return $ CashFlow t $ vanillaPayout pc strike avg
 
 -- | Scales up a contingent claim by a multiplier.
-multiplier :: Double -> ContingentClaim -> ContingentClaim
+multiplier :: Double -> ContingentClaim a -> ContingentClaim a
 multiplier notional cs = ContingentClaim $ map f (unCC cs)
     where f (CCProcessor t g) = CCProcessor t $ fmap (fmap (scale.)) g
           scale (CashFlow dt amt) = CashFlow dt (amt*notional)
 
 -- | Flips the signs in a contingent claim to make it a short position.
-short :: ContingentClaim -> ContingentClaim
+short :: ContingentClaim a -> ContingentClaim a
 short = multiplier (-1)
 
 -- | Takes an amount and a time and generates a fixed cash flow.
-zcb :: Time -> Double -> ContingentClaim
+zcb :: Time -> Double -> ContingentClaim a
 zcb t amt = specify $ return $ CashFlow t amt
 
 -- | Takes a face value, an interest rate, a payment frequency and makes a fixed bond
-fixedBond :: Double -> Double -> Double -> Int -> ContingentClaim
+fixedBond :: Double -> Double -> Double -> Int -> ContingentClaim a
 fixedBond faceVal intRate freq pmts = zcb (Time $ fromIntegral pmts * freq) faceVal 
                                    <> mconcat (map f [1..pmts])
   where
     f x = zcb (Time $ fromIntegral x * freq) (faceVal * intRate * freq) 
 
 -- | Takes a time to maturity and generates a forward contract.
-forwardContract :: Time -> ContingentClaim
+forwardContract :: Obs1 a => Time -> ContingentClaim a
 forwardContract t = specify $ do
   x <- monitor t
   return $ CashFlow t x
 
 -- | A call spread is a long position in a low-strike call
 --and a short position in a high strike call.
-callSpread :: Double -> Double -> Time -> ContingentClaim
+callSpread :: Obs1 a => Double -> Double -> Time -> ContingentClaim a
 callSpread lowStrike highStrike t = mappend (vanillaOption Call lowStrike t) 
                                             (short $ vanillaOption Call highStrike t)
 
 -- | A put spread is a long position in a high strike put
 --and a short position in a low strike put.
-putSpread :: Double -> Double -> Time -> ContingentClaim
+putSpread :: Obs1 a => Double -> Double -> Time -> ContingentClaim a
 putSpread lowStrike highStrike t = mappend (vanillaOption Put highStrike t) 
                                            (short $ vanillaOption Put lowStrike t)
 
 -- | A straddle is a put and a call with the same time to maturity / strike.
-straddle :: Double -> Time -> ContingentClaim
+straddle :: Obs1 a => Double -> Time -> ContingentClaim a
 straddle strike t = vanillaOption Put strike t <> vanillaOption Call strike t
 
 -- | Combines two contingent claims into one. 
-combine :: ContingentClaim -> ContingentClaim -> ContingentClaim
+combine :: ContingentClaim a -> ContingentClaim a -> ContingentClaim a
 combine (ContingentClaim x) (ContingentClaim y) = ContingentClaim $ combine' x y
   where
     combine' (cc1:ccs1) (cc2:ccs2)

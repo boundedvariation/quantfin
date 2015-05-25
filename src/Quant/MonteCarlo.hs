@@ -1,4 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
 
 
 module Quant.MonteCarlo (
@@ -45,17 +47,17 @@ can be performed.
 
 Minimal complete definition: 'initialize', 'discounter', 'forwardGen' and 'evolve''.
 -}
-class Discretize a where
+class Discretize a b | a -> b where
 
     -- | Initializes a Monte Carlo simulation for a given number of runs.
-    initialize :: Discretize a => a   -- ^ Model
-                               -> MonteCarlo (MCObservables, Time) ()
+    initialize :: Discretize a b => a   -- ^ Model
+                                 -> MonteCarlo (b, Time) ()
 
     -- | Evolves the internal states of the MC variables between two times.
-    evolve :: Discretize a => a            -- ^ Model
-                           -> Time         -- ^ time to evolve to
-                           -> Bool         -- whether or not to use flipped variates
-                           -> MonteCarlo (MCObservables, Time) ()
+    evolve :: Discretize a b => a            -- ^ Model
+                             -> Time         -- ^ time to evolve to
+                             -> Bool         -- whether or not to use flipped variates
+                             -> MonteCarlo (b, Time) ()
     evolve mdl t2 anti = do
         (_, t1) <- get
         let ms = maxStep mdl
@@ -67,29 +69,29 @@ class Discretize a where
               evolve mdl t2 anti
 
     -- | Non-stateful discounting function...might need to find a better place to put this.
-    discount :: Discretize a => a -> Time -> MonteCarlo (MCObservables, Time) Double
+    discount :: Discretize a b => a -> Time -> MonteCarlo (b, Time) Double
 
     -- | Stateful forward generator for a given model at a certain time.
-    forwardGen :: Discretize a => a -> Time -> MonteCarlo (MCObservables, Time) Double
+    forwardGen :: Discretize a b => a -> Time -> MonteCarlo (b, Time) Double
 
     -- | Internal function to evolve a model to a given time.
-    evolve' :: Discretize a => a          -- ^ model
-                            -> Time       -- ^ time to evolve to
-                            -> Bool       -- ^ whether or not to use flipped variates
-                            -> MonteCarlo (MCObservables, Time) () -- ^ computation result
+    evolve' :: Discretize a b => a          -- ^ model
+                              -> Time       -- ^ time to evolve to
+                              -> Bool       -- ^ whether or not to use flipped variates
+                              -> MonteCarlo (b, Time) () -- ^ computation result
 
     -- | Determines the maximum size time-step for discretization purposes. Defaults to 1/250.
-    maxStep :: Discretize a => a -> Double
+    maxStep :: Discretize a b => a -> Double
     maxStep _ = 1/250
     {-# INLINE maxStep #-}
 
     -- | Perform a simulation of a compiled basket of contingent claims.
-    simulateState :: Discretize a => 
-           a                       -- ^ model
-        -> ContingentClaim         -- ^ compilied basket of claims
-        -> Int                     -- ^ number of trials
-        -> Bool                    -- ^ antithetic?
-        -> MonteCarlo (MCObservables, Time) Double -- ^ computation result
+    simulateState :: Discretize a b => 
+           a                              -- ^ model
+        -> ContingentClaim b              -- ^ compilied basket of claims
+        -> Int                            -- ^ number of trials
+        -> Bool                           -- ^ antithetic?
+        -> MonteCarlo (b, Time) Double -- ^ computation result
     simulateState modl (ContingentClaim ccb) trials anti = avg <$> replicateM trials singleTrial
           where 
             singleTrial = initialize modl >> 
@@ -136,29 +138,29 @@ class Discretize a where
             avg v = sum v / fromIntegral trials
 
     -- | Runs a simulation for a 'ContingentClaim'.
-    runSimulation :: (Discretize a,
-                             MonadRandom (StateT b Identity)) =>
-                                a                  -- ^ model
-                             -> ContingentClaim    -- ^ claims to value
-                             -> b                  -- ^ initial random state
-                             -> Int                -- ^ trials
-                             -> Bool               -- ^ whether to use antithetic variables
-                             -> Double             -- ^ final value
-    runSimulation modl ccs seed trials anti = runMC run seed (Observables [], Time 0)
+    runSimulation :: (Discretize a b,
+                             MonadRandom (StateT c Identity)) =>
+                                a                             -- ^ model
+                             -> ContingentClaim b             -- ^ claims to value
+                             -> c                             -- ^ initial random state
+                             -> Int                           -- ^ trials
+                             -> Bool                          -- ^ whether to use antithetic variables
+                             -> Double                        -- ^ final value
+    runSimulation modl ccs seed trials anti = runMC run seed (undefined, Time 0)
        where
             run = simulateState modl ccs trials anti
 
     -- | Like 'runSimulation', but splits the trials in two and does antithetic variates.
-    runSimulationAnti :: (Discretize a,
-                             MonadRandom (StateT b Identity)) =>
-                            a -> ContingentClaim -> b -> Int -> Double
+    runSimulationAnti :: (Discretize a b,
+                             MonadRandom (StateT c Identity)) =>
+                            a -> ContingentClaim b -> c -> Int -> Double
     runSimulationAnti modl ccs seed trials = (runSim True + runSim False) / 2
-        where runSim = runSimulation modl ccs seed (trials `div` 2)
+        where runSim x = runSimulation modl ccs seed (trials `div` 2) x
 
     -- | 'runSimulation' with a default random number generator.
-    quickSim :: Discretize a => a -> ContingentClaim -> Int -> Double
+    quickSim :: Discretize a b => a -> ContingentClaim b -> Int -> Double
     quickSim mdl opts trials = runSimulation mdl opts (pureMT 500) trials False
 
     -- | 'runSimulationAnti' with a default random number generator.
-    quickSimAnti :: Discretize a => a -> ContingentClaim -> Int -> Double
+    quickSimAnti :: Discretize a b => a -> ContingentClaim b -> Int -> Double
     quickSimAnti mdl opts trials = runSimulationAnti mdl opts (pureMT 500) trials
