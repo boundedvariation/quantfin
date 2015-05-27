@@ -11,6 +11,8 @@ import Data.Random
 import Control.Monad.State
 import Quant.MonteCarlo
 import Quant.YieldCurve
+import Quant.VectorOps
+import qualified Data.Vector.Unboxed as U
 
 -- | 'Dupire' represents a Dupire-style local vol model.
 data Dupire = forall a b . (YieldCurve a, YieldCurve b) => Dupire {
@@ -20,25 +22,25 @@ data Dupire = forall a b . (YieldCurve a, YieldCurve b) => Dupire {
  , mertonDiscounter  ::  b } -- ^ 'YieldCurve' to generate discount rates
 
 instance Discretize Dupire Observables1 where
-    initialize (Dupire s _ _ _) = put (Observables1 s, Time 0)
+    initialize (Dupire s _ _ _) = put (Observables1 (constant s), Time 0)
     {-# INLINE initialize #-}
 
     evolve' d@(Dupire _ f _ _) t2 anti = do
         (Observables1 stateVal, t1) <- get
         fwd <- forwardGen d t2
-        let vol   = f t1 stateVal
+        let vol   = f t1 .$. stateVal
             t     = timeDiff t1 t2
-            grwth = (fwd - vol * vol / 2) * t
-        normResid <- lift stdNormal
-        let s' | anti      = stateVal * exp (grwth - normResid*vol*sqrt t)
-               | otherwise = stateVal * exp (grwth - normResid*vol*sqrt t)
+            grwth = (fwd - vol * vol / 2) .* t
+        normResid <- lift $ U.replicateM mcVecLen stdNormal
+        let s' | anti      = stateVal * exp (grwth - normResid*vol.*sqrt t)
+               | otherwise = stateVal * exp (grwth - normResid*vol.*sqrt t)
         put (Observables1 s', t2)
     {-# INLINE evolve' #-}
 
-    discount (Dupire _ _ _ dsc) t = return $ disc dsc t
+    discount (Dupire _ _ _ dsc) t = return $ constant $ disc dsc t
     {-# INLINE discount #-}
 
     forwardGen (Dupire _ _ fg _) t2 = do
         t1 <- gets snd
-        return $ forward fg t1 t2
+        return $ constant $ forward fg t1 t2
     {-# INLINE forwardGen #-}

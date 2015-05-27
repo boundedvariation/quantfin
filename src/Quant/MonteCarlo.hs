@@ -22,10 +22,12 @@ import Control.Applicative
 import Control.Monad.State
 import Data.Functor.Identity
 import Quant.Time
+import Quant.Types
 import Data.RVar
 import Data.Foldable (foldl')
 import System.Random.Mersenne.Pure64
 import qualified Data.Map as Map
+import qualified Data.Vector.Unboxed as U
 
 -- | A monad transformer for Monte-Carlo calculations.
 type MonteCarloT m s = StateT s (RVarT m)
@@ -69,10 +71,10 @@ class Discretize a b | a -> b where
               evolve mdl t2 anti
 
     -- | Non-stateful discounting function...might need to find a better place to put this.
-    discount :: Discretize a b => a -> Time -> MonteCarlo (b, Time) Double
+    discount :: Discretize a b => a -> Time -> MonteCarlo (b, Time) MCVector
 
     -- | Stateful forward generator for a given model at a certain time.
-    forwardGen :: Discretize a b => a -> Time -> MonteCarlo (b, Time) Double
+    forwardGen :: Discretize a b => a -> Time -> MonteCarlo (b, Time) MCVector
 
     -- | Internal function to evolve a model to a given time.
     evolve' :: Discretize a b => a          -- ^ model
@@ -91,11 +93,13 @@ class Discretize a b | a -> b where
         -> ContingentClaim b              -- ^ compilied basket of claims
         -> Int                            -- ^ number of trials
         -> Bool                           -- ^ antithetic?
-        -> MonteCarlo (b, Time) Double -- ^ computation result
-    simulateState modl (ContingentClaim ccb) trials anti = avg <$> replicateM trials singleTrial
+        -> MonteCarlo (b, Time) Double    -- ^ computation result
+    simulateState modl (ContingentClaim ccb) trials anti = avg <$> U.replicateM (trials `div` mcVecLen) singleTrial
           where 
-            singleTrial = initialize modl >> 
-                            process (0 :: Double) Map.empty ccb []
+            singleTrial = do
+              initialize modl
+              x <- process (U.replicate mcVecLen 0) Map.empty ccb []
+              return $ U.sum x / fromIntegral mcVecLen
 
 
             process discCFs obsMap c@(CCProcessor t mf:ccs) allcfs@(CashFlow cft amt:cfs) = 
@@ -135,7 +139,7 @@ class Discretize a b | a -> b where
               | otherwise = CashFlow t amt : CashFlow t' amt' : cfs
             insertCF cf [] = [cf]
 
-            avg v = sum v / fromIntegral trials
+            avg v = U.sum v / fromIntegral (trials `div` mcVecLen)
 
     -- | Runs a simulation for a 'ContingentClaim'.
     runSimulation :: (Discretize a b,

@@ -1,3 +1,6 @@
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE BangPatterns #-}
+
 module Quant.RNG.MWC64X (
     MWC64X(..)
   , randomWord32
@@ -12,6 +15,8 @@ import Data.Int
 import Data.Bits 
 import Data.Word 
 import Data.Random.Internal.Words
+--import Data.Random.Source
+--import Control.Monad.State
 import System.Random
 
 data MWC64X = MWC64X {-# UNPACK #-} !Word64 deriving (Eq,Show)
@@ -28,7 +33,7 @@ randomInt g = (fromIntegral i, g')
 
 randomWord64 :: MWC64X -> (Word64, MWC64X) 
 randomWord64 x = (buildWord64'' y1 y2, x'') 
-    where (y1, x' )  = randomWord32 x 
+    where (y1, x' ) = randomWord32 x 
           (y2, x'') = randomWord32 x'
 
 randomDouble :: MWC64X -> (Double, MWC64X)
@@ -76,7 +81,7 @@ skip (MWC64X st) d = MWC64X st'
         x'  = mulMod64 (x * aConst + c) m mConst
         x'' = fromIntegral $ x' `div` aConst :: Word32
         c'  = fromIntegral $ x' `mod` aConst :: Word32
-        st' = buildWord64'' c' x''
+        st' = mkWord64 c' x''
 
 mkWord64 :: Word32 -> Word32 -> Word64
 mkWord64 a b = (fromIntegral $ a `shiftL` 32) .&. fromIntegral b
@@ -86,3 +91,17 @@ aConst = 4294883355
 --bConst = 4077358422479273989
 mConst = 18446383549859758079
 skipConst = 1073741824
+
+-- $(monadRandom
+--    [d| instance MonadRandom (State MWC64X) where
+--            getRandomWord64 = do
+--              st <- get
+--              let (!x, st') = randomWord64 st
+--              put st'
+--              return x
+--            getRandomDouble = do
+--              st <- get
+--              let (!x, st') = randomDouble st
+--              put st' 
+--              return x
+--     |])
