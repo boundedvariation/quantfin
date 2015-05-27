@@ -62,11 +62,12 @@ library
                        Quant.Models.Dupire
                        Quant.Models.Heston
                        Quant.Models.Processes
-                       --Quant.RNG.MWC64X
+                       Quant.RNG.MWC64X
                        Quant.MonteCarlo
                        Quant.ContingentClaim
                        Quant.Types
                        Quant.Time
+                       Quant.VectorOps
   
   -- Modules included in this library but not exported.
   -- other-modules:       
