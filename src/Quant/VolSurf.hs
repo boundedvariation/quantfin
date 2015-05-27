@@ -57,7 +57,7 @@ class VolSurf a where
                 solution = dwdt/(1.0-y/w*dwdy+0.25*(-0.25-1.0/w+y*y/w/w)*dwdy*dwdy+0.5*d2wdy2)
 
 -- |A flat surface has one volatility at all times/maturities.
-data FlatSurf = FlatSurf Double
+data FlatSurf = FlatSurf {-# UNPACK #-} !Double
 
 instance VolSurf FlatSurf where
     vol (FlatSurf x) _ _ = x
