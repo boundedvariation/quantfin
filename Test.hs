@@ -6,7 +6,6 @@ import Quant.YieldCurve
 import Quant.ContingentClaim
 import Quant.Models.Black
 import Quant.Models.Heston
-import qualified Data.Vector.Unboxed as U
 
 --create a flat yield curve with a 5% rate
 baseYC :: FlatCurve
@@ -26,7 +25,7 @@ vanopt = vanillaOption Call 100 (Time 1) --built in function
 vanopt' :: ContingentClaim1
 vanopt' = specify $ do
 	x <- monitor (Time 1)
-	return $ CashFlow (Time 1) $ U.map (\k -> max (k-100) 0) x --roll your own
+	return $ CashFlow (Time 1) (max (x - 100) 0) --roll your own
 
 --Run a Monte Carlo on opt in a a black model with 10000 trials
 vanoptPrice :: Double

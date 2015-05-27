@@ -98,7 +98,6 @@ library
 executable "example"
   build-depends:
     base, 
-    vector,
     quantfin
   main-is: Test.hs
   ghc-options: -Wall -fexcess-precision -rtsopts

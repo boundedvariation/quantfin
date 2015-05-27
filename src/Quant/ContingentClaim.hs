@@ -37,12 +37,10 @@ module Quant.ContingentClaim (
 
 )  where
 
-import Quant.VectorOps
 import Control.Monad.Reader
 import Control.Monad.Writer.Strict
 import Quant.Types
 import Quant.Time
-import qualified Data.Vector.Unboxed as U
 import qualified Data.Map as M
 
 -- | Key type for building contingent claims.
@@ -74,31 +72,31 @@ data CCProcessor a = CCProcessor  {
 type CCBuilder w r a = WriterT w (Reader r) a
 
 -- | 'monitor' gets the value of the first observable at a given time.
-monitor :: Obs1 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) MCVector
+monitor :: Obs1 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) Double
 monitor = monitor1
 
 -- | 'monitor1' gets the value of the first observable at a given time.
-monitor1 :: Obs1 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) MCVector
+monitor1 :: Obs1 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) Double
 monitor1 = monitorGeneric get1
 
 -- | 'monitor2' gets the value of the second observable at a given time.
-monitor2 :: Obs2 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) MCVector
+monitor2 :: Obs2 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) Double
 monitor2 = monitorGeneric get2
 
 -- | 'monitor3' gets the value of the third observable at a given time.
-monitor3 :: Obs3 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) MCVector
+monitor3 :: Obs3 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) Double
 monitor3 = monitorGeneric get3
 
 -- | 'monitor4' gets the value of the fourth observable at a given time.
-monitor4 :: Obs4 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) MCVector
+monitor4 :: Obs4 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) Double
 monitor4 = monitorGeneric get4
 
 -- | 'monitor5' gets the value of the fifth observable at a given time.
-monitor5 :: Obs5 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) MCVector
+monitor5 :: Obs5 a => Time -> CCBuilder (ContingentClaim a) (M.Map Time a) Double
 monitor5 = monitorGeneric get5
 
 -- | 'monitorGeneric' applies any getter at a given time.
-monitorGeneric :: (a -> MCVector) -> Time -> CCBuilder (ContingentClaim a) (M.Map Time a) MCVector
+monitorGeneric :: (a -> Double) -> Time -> CCBuilder (ContingentClaim a) (M.Map Time a) Double
 monitorGeneric f t = do
   tell $ ContingentClaim [CCProcessor t Nothing]
   m <- lift ask
@@ -141,7 +139,7 @@ binaryPayout pc strike amount x = case pc of
 terminalOnly :: Obs1 a => Time -> (Double -> Double) -> ContingentClaim a
 terminalOnly t g = specify $ do
   x <- monitor t
-  return $ CashFlow t $ g .$. x
+  return $ CashFlow t $ g x
 
 -- | Takes an OptionType, a strike, and a time to maturity and generates a vanilla option.
 vanillaOption :: Obs1 a => OptionType -> Double -> Time -> ContingentClaim a
@@ -158,7 +156,7 @@ arithmeticAsianOption :: Obs1 a => OptionType -> Double -> [Time] -> Time -> Con
 arithmeticAsianOption pc strike obsTimes t = specify $ do
   x <- mapM monitor obsTimes
   let avg = sum x / fromIntegral (length obsTimes)
-  return $ CashFlow t $ vanillaPayout pc strike .$. avg
+  return $ CashFlow t $ vanillaPayout pc strike avg
 
 -- | Takes an OptionType, a strike, observation times, time to
 --maturity and generates an arithmetic Asian option.
@@ -166,13 +164,13 @@ geometricAsianOption :: Obs1 a => OptionType -> Double -> [Time] -> Time -> Cont
 geometricAsianOption pc strike obsTimes t = specify $ do
   x <- mapM monitor obsTimes
   let avg = product x ** (1 / fromIntegral (length obsTimes))
-  return $ CashFlow t $ vanillaPayout pc strike .$. avg
+  return $ CashFlow t $ vanillaPayout pc strike avg
 
 -- | Scales up a contingent claim by a multiplier.
 multiplier :: Double -> ContingentClaim a -> ContingentClaim a
 multiplier notional cs = ContingentClaim $ map f (unCC cs)
     where f (CCProcessor t g) = CCProcessor t $ fmap (fmap (scale.)) g
-          scale (CashFlow dt amt) = CashFlow dt (amt.*notional)
+          scale (CashFlow dt amt) = CashFlow dt (amt*notional)
 
 -- | Flips the signs in a contingent claim to make it a short position.
 short :: ContingentClaim a -> ContingentClaim a
@@ -180,7 +178,7 @@ short = multiplier (-1)
 
 -- | Takes an amount and a time and generates a fixed cash flow.
 zcb :: Time -> Double -> ContingentClaim a
-zcb t amt = specify $ return $ CashFlow t $ constant amt
+zcb t amt = specify $ return $ CashFlow t amt
 
 -- | Takes a face value, an interest rate, a payment frequency and makes a fixed bond
 fixedBond :: Double -> Double -> Double -> Int -> ContingentClaim a

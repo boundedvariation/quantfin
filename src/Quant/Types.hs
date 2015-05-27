@@ -1,6 +1,3 @@
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE RankNTypes #-}
-
 
 module Quant.Types (
     CashFlow(..)
@@ -15,28 +12,14 @@ module Quant.Types (
   , Obs3(..)
   , Obs4(..)
   , Obs5(..)
-  , MCVector
-  , mcVecLen
-  , constant
   ) where
 
 import Quant.Time
-import qualified Data.Vector.Unboxed as U
-
-mcVecLen :: Int
-mcVecLen = 1024
-{-# INLINE mcVecLen #-}
-
-constant :: U.Unbox a => a -> U.Vector a
-constant x = U.replicate mcVecLen x
-{-# INLINE constant #-}
-
-type MCVector = U.Vector Double
 
 -- | A CashFlow is just a time and an amount.
 data CashFlow = CashFlow {
     cfTime   :: Time
-  , cfAmount :: MCVector
+  , cfAmount :: Double
 }
 
 
@@ -44,30 +27,30 @@ data CashFlow = CashFlow {
 data OptionType = Put | Call deriving (Eq,Show)
 
 -- | Single-observable container.
-data Observables1 = Observables1 {-# UNPACK #-} !MCVector
+data Observables1 = Observables1 {-# UNPACK #-} !Double
 -- | Two observable container.
-data Observables2 = Observables2 {-# UNPACK #-} !MCVector !MCVector
+data Observables2 = Observables2 {-# UNPACK #-} !Double !Double
 -- | Three observable container.
-data Observables3 = Observables3 {-# UNPACK #-} !MCVector !MCVector !MCVector
+data Observables3 = Observables3 {-# UNPACK #-} !Double !Double !Double
 -- | Four observable container.
-data Observables4 = Observables4 {-# UNPACK #-} !MCVector !MCVector !MCVector !MCVector
+data Observables4 = Observables4 {-# UNPACK #-} !Double !Double !Double !Double
 -- | Five observable container.
-data Observables5 = Observables5 {-# UNPACK #-} !MCVector !MCVector !MCVector !MCVector !MCVector
+data Observables5 = Observables5 {-# UNPACK #-} !Double !Double !Double !Double !Double
 
 class Obs1 a where
-    get1 :: a -> MCVector
+    get1 :: a -> Double
 
 class (Obs1 a) => Obs2 a where
-	get2 :: a -> MCVector
+	get2 :: a -> Double
 
 class (Obs2 a) => Obs3 a where
-	get3 :: a -> MCVector
+	get3 :: a -> Double
 
 class (Obs3 a) => Obs4 a where
-	get4 :: a -> MCVector
+	get4 :: a -> Double
 
 class (Obs4 a) => Obs5 a where
-	get5 :: a -> MCVector
+	get5 :: a -> Double
 
 instance Obs1 Observables1 where
 	get1 (Observables1 x) = x

@@ -12,8 +12,6 @@ import Quant.YieldCurve
 import Data.Random
 import Control.Monad.State
 import Quant.MonteCarlo
-import qualified Data.Vector.Unboxed as U
-import Quant.VectorOps
 
 -- | 'Black' represents a Black-Scholes model.
 data Black = forall a b  . (YieldCurve a, YieldCurve b) => Black {
@@ -32,26 +30,26 @@ data Black = forall a b  . (YieldCurve a, YieldCurve b) => Black {
             --logs = log s :+ 0
 
 instance Discretize Black Observables1 where
-    initialize (Black s _ _ _)  = put (Observables1 (constant s), Time 0)
+    initialize (Black s _ _ _)  = put (Observables1 s, Time 0)
     {-# INLINE initialize #-}
 
     evolve' b@(Black _ vol _ _) t2 anti = do
         (Observables1 stateVal, t1) <- get
         fwd <- forwardGen b t2
         let t = timeDiff t1 t2 
-            grwth = (fwd .- vol*vol/2) .* t
-        resid <- lift $ U.replicateM mcVecLen stdNormal
+            grwth = (fwd - vol*vol/2) * t
+        resid <- lift stdNormal
         let resid' = if anti then -resid else resid
-            postVal = stateVal * exp (grwth + resid'.*vol.*sqrt t)
+            postVal = stateVal * exp (grwth + resid'*vol*sqrt t)
         put (Observables1 postVal, t2)
     {-# INLINE evolve' #-}
 
-    discount (Black _ _ _ dsc) t = return $ constant $ disc dsc t
+    discount (Black _ _ _ dsc) t = return $ disc dsc t
     {-# INLINE discount #-}
 
     forwardGen (Black _ _ fg _) t2 = do
       (_, t1) <- get
-      return $ constant $ forward fg t1 t2
+      return $ forward fg t1 t2
     {-# INLINE forwardGen #-}
 
     maxStep _ = 100
