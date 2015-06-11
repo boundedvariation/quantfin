@@ -6,8 +6,6 @@ module Quant.Types (
   , Observables3(..)
   , Observables4(..)
   , Observables5(..)
-  , MCVector
-  , vecLen
   , OptionType(..)
   , Obs1(..)
   , Obs2(..)
@@ -17,62 +15,42 @@ module Quant.Types (
   ) where
 
 import Quant.Time
-import qualified Data.Vector.Unboxed as U
 
 -- | A CashFlow is just a time and an amount.
-data CashFlow a = CashFlow {
+data CashFlow = CashFlow {
     cfTime   :: Time
-  , cfAmount :: a
+  , cfAmount :: Double
 }
 
-type MCVector = U.Vector Double
-
-vecLen :: Int
-vecLen = 1024
 
 -- | Type for Put or Calls
 data OptionType = Put | Call deriving (Eq,Show)
 
 -- | Single-observable container.
-data Observables1 a = Observables1 !a
+data Observables1 = Observables1 {-# UNPACK #-} !Double
 -- | Two observable container.
-data Observables2 a = Observables2 !a !a
+data Observables2 = Observables2 {-# UNPACK #-} !Double !Double
 -- | Three observable container.
-data Observables3 a = Observables3 !a !a !a
+data Observables3 = Observables3 {-# UNPACK #-} !Double !Double !Double
 -- | Four observable container.
-data Observables4 a = Observables4 !a !a !a !a
+data Observables4 = Observables4 {-# UNPACK #-} !Double !Double !Double !Double
 -- | Five observable container.
-data Observables5 a = Observables5 !a !a !a !a !a
-
-instance Functor Observables1 where
-  fmap f (Observables1 a) = Observables1 (f a)
-
-instance Functor Observables2 where
-  fmap f (Observables2 a b) = Observables2 (f a) (f b)
-
-instance Functor Observables3 where
-  fmap f (Observables3 a b c) = Observables3 (f a) (f b) (f c)
-
-instance Functor Observables4 where
-  fmap f (Observables4 a b c d) = Observables4 (f a) (f b) (f c) (f d)
-
-instance Functor Observables5 where
-  fmap f (Observables5 a b c d e) = Observables5 (f a) (f b) (f c) (f d) (f e)
+data Observables5 = Observables5 {-# UNPACK #-} !Double !Double !Double !Double !Double
 
 class Obs1 a where
-    get1 :: a b -> b
+    get1 :: a -> Double
 
 class (Obs1 a) => Obs2 a where
-	get2 :: a b -> b
+	get2 :: a -> Double
 
 class (Obs2 a) => Obs3 a where
-	get3 :: a b -> b
+	get3 :: a -> Double
 
 class (Obs3 a) => Obs4 a where
-	get4 :: a b -> b
+	get4 :: a -> Double
 
 class (Obs4 a) => Obs5 a where
-	get5 :: a b -> b
+	get5 :: a -> Double
 
 instance Obs1 Observables1 where
 	get1 (Observables1 x) = x

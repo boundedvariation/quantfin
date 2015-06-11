@@ -12,8 +12,6 @@ import Quant.YieldCurve
 import Data.Random
 import Control.Monad.State
 import Quant.MonteCarlo
-import Quant.VectorOps
-import qualified Data.Vector.Unboxed as U
 
 -- | 'Black' represents a Black-Scholes model.
 data Black = forall a b  . (YieldCurve a, YieldCurve b) => Black {
@@ -32,14 +30,14 @@ data Black = forall a b  . (YieldCurve a, YieldCurve b) => Black {
             --logs = log s :+ 0
 
 instance Discretize Black Observables1 where
-    initialize (Black s _ _ _) len = put (Observables1 $ U.replicate len s, Time 0)
+    initialize (Black s _ _ _)  = put (Observables1 s, Time 0)
     {-# INLINE initialize #-}
 
     evolve' b@(Black _ vol _ _) t2 anti = do
         (Observables1 stateVal, t1) <- get
         fwd <- forwardGen b t2
         let t = timeDiff t1 t2 
-            grwth = (fwd .- vol*vol/2) .* t
+            grwth = (fwd - vol*vol/2) * t
         resid <- lift stdNormal
         let resid' = if anti then -resid else resid
             postVal = stateVal * exp (grwth + resid'*vol*sqrt t)

@@ -16,7 +16,6 @@ module Quant.VectorOps (
 
 import qualified Data.Vector.Unboxed as U
 
-
 infixl 7 .*.
 (.*.) :: (U.Unbox a, Num a) => U.Vector a -> U.Vector a -> U.Vector a
 x .*. y = U.zipWith (*) x y
