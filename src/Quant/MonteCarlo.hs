@@ -13,6 +13,11 @@ module Quant.MonteCarlo (
   , Discretize(..)
   , OptionType(..)
 
+  , runSimulation
+  , runSimulationAnti
+  , quickSim
+  , quickSimAnti
+
   )
 where
 
@@ -107,21 +112,17 @@ class Discretize a b | a -> b where
                   evolve modl t anti
                   obs <- gets fst
                   let obsMap' = Map.insert t obs obsMap
-                  case mf of
-                    Nothing -> process discCFs obsMap' ccs allcfs
-                    Just f -> let newCFs = map ($obsMap') f
-                                  insertCFList xs cfList = foldl' (flip insertCF) cfList xs in
-                        process discCFs obsMap' ccs (insertCFList newCFs allcfs)
+                      newCFs = map ($obsMap') mf
+                      insertCFList xs cfList = foldl' (flip insertCF) cfList xs
+                  process discCFs obsMap' ccs (insertCFList newCFs allcfs)
 
             process discCFs obsMap (CCProcessor t mf:ccs) [] = do
               evolve modl t anti
               obs <- gets fst
               let obsMap' = Map.insert t obs obsMap
-              case mf of
-                Nothing -> process discCFs obsMap' ccs []
-                Just f -> let newCFs = map ($obsMap') f
-                              insertCFList xs cfList = foldl' (flip insertCF) cfList xs in
-                        process discCFs obsMap' ccs (insertCFList newCFs [])                       
+                  newCFs = map ($obsMap') mf
+                  insertCFList xs cfList = foldl' (flip insertCF) cfList xs
+              process discCFs obsMap' ccs (insertCFList newCFs [])
 
             process discCFs obsMap [] (cf:cfs) = do
               evolve modl (cfTime cf) anti
@@ -137,30 +138,34 @@ class Discretize a b | a -> b where
 
             avg v = sum v / fromIntegral trials
 
-    -- | Runs a simulation for a 'ContingentClaim'.
-    runSimulation :: (Discretize a b,
-                             MonadRandom (StateT c Identity)) =>
-                                a                             -- ^ model
-                             -> ContingentClaim b             -- ^ claims to value
-                             -> c                             -- ^ initial random state
-                             -> Int                           -- ^ trials
-                             -> Bool                          -- ^ whether to use antithetic variables
-                             -> Double                        -- ^ final value
-    runSimulation modl ccs seed trials anti = runMC run seed (undefined, Time 0)
-       where
-            run = simulateState modl ccs trials anti
+-- | Runs a simulation for a 'ContingentClaim'.
+runSimulation :: (Discretize a b,
+                         MonadRandom (StateT c Identity)) =>
+                            a                             -- ^ model
+                         -> ContingentClaim b             -- ^ claims to value
+                         -> c                             -- ^ initial random state
+                         -> Int                           -- ^ trials
+                         -> Bool                          -- ^ whether to use antithetic variables
+                         -> Double                        -- ^ final value
+runSimulation modl ccs seed trials anti = runMC run seed (undefined, Time 0)
+   where
+        run = simulateState modl ccs trials anti
+{-# INLINE runSimulation #-}
 
-    -- | Like 'runSimulation', but splits the trials in two and does antithetic variates.
-    runSimulationAnti :: (Discretize a b,
-                             MonadRandom (StateT c Identity)) =>
-                            a -> ContingentClaim b -> c -> Int -> Double
-    runSimulationAnti modl ccs seed trials = (runSim True + runSim False) / 2
-        where runSim x = runSimulation modl ccs seed (trials `div` 2) x
+-- | Like 'runSimulation', but splits the trials in two and does antithetic variates.
+runSimulationAnti :: (Discretize a b,
+                         MonadRandom (StateT c Identity)) =>
+                        a -> ContingentClaim b -> c -> Int -> Double
+runSimulationAnti modl ccs seed trials = (runSim True + runSim False) / 2
+    where runSim x = runSimulation modl ccs seed (trials `div` 2) x
+{-# INLINE runSimulationAnti #-}
 
-    -- | 'runSimulation' with a default random number generator.
-    quickSim :: Discretize a b => a -> ContingentClaim b -> Int -> Double
-    quickSim mdl opts trials = runSimulation mdl opts (pureMT 500) trials False
+-- | 'runSimulation' with a default random number generator.
+quickSim :: Discretize a b => a -> ContingentClaim b -> Int -> Double
+quickSim mdl opts trials = runSimulation mdl opts (pureMT 500) trials False
+{-# INLINE quickSim #-}
 
-    -- | 'runSimulationAnti' with a default random number generator.
-    quickSimAnti :: Discretize a b => a -> ContingentClaim b -> Int -> Double
-    quickSimAnti mdl opts trials = runSimulationAnti mdl opts (pureMT 500) trials
+-- | 'runSimulationAnti' with a default random number generator.
+quickSimAnti :: Discretize a b => a -> ContingentClaim b -> Int -> Double
+quickSimAnti mdl opts trials = runSimulationAnti mdl opts (pureMT 500) trials
+{-# INLINE quickSimAnti #-}

@@ -66,7 +66,7 @@ instance Monoid (ContingentClaim a) where
 --Also, optionally a payout function may be applied at any time step.
 data CCProcessor a = CCProcessor  {
     monitorTime      :: Time
-  , payoutFunc       :: Maybe [M.Map Time a -> CashFlow]
+  , payoutFunc       :: [M.Map Time a -> CashFlow]
 }
 
 type CCBuilder w r a = WriterT w (Reader r) a
@@ -98,17 +98,17 @@ monitor5 = monitorGeneric get5
 -- | 'monitorGeneric' applies any getter at a given time.
 monitorGeneric :: (a -> Double) -> Time -> CCBuilder (ContingentClaim a) (M.Map Time a) Double
 monitorGeneric f t = do
-  tell $ ContingentClaim [CCProcessor t Nothing]
+  tell $ ContingentClaim [CCProcessor t []]
   m <- lift ask
   return $ f (m M.! t)
 
 -- | Pulls a ContingentClaim out of the CCBuilder monad.
 specify :: CCBuilder (ContingentClaim a) (M.Map Time a) CashFlow -> ContingentClaim a
-specify x = w `mappend` ContingentClaim [CCProcessor (last0 w') (Just [f])]
+specify x = w `mappend` ContingentClaim [CCProcessor lastW [f]]
   where
     w  = runReader (execWriterT x) M.empty
     f  = runReader . liftM fst $ runWriterT x
-    w' = map monitorTime $ unCC w
+    lastW = last0 . map monitorTime $ unCC w
     -- Equivalent to Prelude's last, but with a default of zero
     last0 [] = Time 0
     last0 [y] = y
@@ -169,7 +169,7 @@ geometricAsianOption pc strike obsTimes t = specify $ do
 -- | Scales up a contingent claim by a multiplier.
 multiplier :: Double -> ContingentClaim a -> ContingentClaim a
 multiplier notional cs = ContingentClaim $ map f (unCC cs)
-    where f (CCProcessor t g) = CCProcessor t $ fmap (fmap (scale.)) g
+    where f (CCProcessor t g) = CCProcessor t $ (fmap (scale.)) g
           scale (CashFlow dt amt) = CashFlow dt (amt*notional)
 
 -- | Flips the signs in a contingent claim to make it a short position.
@@ -215,15 +215,9 @@ combine (ContingentClaim x) (ContingentClaim y) = ContingentClaim $ combine' x y
   where
     combine' (cc1:ccs1) (cc2:ccs2)
       | monitorTime cc1 == monitorTime cc2 = let
-          (CCProcessor t mf)  = cc1
-          (CCProcessor _ mf') = cc2 in
-            case mf of
-              Nothing -> cc2 : combine' ccs1 ccs2
-              Just a  -> case mf' of
-                Nothing -> cc1 : combine' ccs1 ccs2
-                Just b  -> CCProcessor t (Just (a ++ b)) : combine' ccs1 ccs2
+            CCProcessor t mf  = cc1
+            CCProcessor _ mf' = cc2 in
+          CCProcessor t (mf++mf') : combine' ccs1 ccs2
       | monitorTime cc1 > monitorTime cc2 = cc2 : combine' (cc1:ccs1) ccs2
       | otherwise = cc1 : combine' ccs1 (cc2:ccs2)
-    combine' [] [] = []
-    combine' cs [] = cs
-    combine' [] cs = cs
+    combine' cs1 cs2 = cs1 ++ cs2
