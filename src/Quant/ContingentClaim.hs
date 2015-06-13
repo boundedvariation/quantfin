@@ -99,7 +99,7 @@ monitor5 = monitorGeneric get5
 monitorGeneric :: (a -> Double) -> Time -> CCBuilder (ContingentClaim a) (M.Map Time a) Double
 monitorGeneric f t = do
   tell $ ContingentClaim [CCProcessor t []]
-  m <- lift ask
+  m <- ask
   return $ f (m M.! t)
 
 -- | Pulls a ContingentClaim out of the CCBuilder monad.
