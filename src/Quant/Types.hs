@@ -29,13 +29,17 @@ data OptionType = Put | Call deriving (Eq,Show)
 -- | Single-observable container.
 data Observables1 = Observables1 {-# UNPACK #-} !Double
 -- | Two observable container.
-data Observables2 = Observables2 {-# UNPACK #-} !Double !Double
+data Observables2 = Observables2 {-# UNPACK #-} !Double {-# UNPACK #-} !Double
 -- | Three observable container.
-data Observables3 = Observables3 {-# UNPACK #-} !Double !Double !Double
+data Observables3 = Observables3 {-# UNPACK #-} !Double {-# UNPACK #-} !Double 
+                                 {-# UNPACK #-} !Double
 -- | Four observable container.
-data Observables4 = Observables4 {-# UNPACK #-} !Double !Double !Double !Double
+data Observables4 = Observables4 {-# UNPACK #-} !Double {-# UNPACK #-} !Double 
+                                 {-# UNPACK #-} !Double {-# UNPACK #-} !Double
 -- | Five observable container.
-data Observables5 = Observables5 {-# UNPACK #-} !Double !Double !Double !Double !Double
+data Observables5 = Observables5 {-# UNPACK #-} !Double {-# UNPACK #-} !Double 
+                                 {-# UNPACK #-} !Double {-# UNPACK #-} !Double 
+                                 {-# UNPACK #-} !Double
 
 class Obs1 a where
     get1 :: a -> Double
