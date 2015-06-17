@@ -16,8 +16,8 @@ import Quant.YieldCurve
 data Dupire = forall a b . (YieldCurve a, YieldCurve b) => Dupire {
    dupireInitial     ::  Double -- ^ Initial asset level
  , dupireFunc        ::  Time -> Double -> Double -- ^ Local vol function taking a time to maturity and a level
- , mertonForwardGen  ::  a  -- ^ 'YieldCurve' to generate forwards
- , mertonDiscounter  ::  b } -- ^ 'YieldCurve' to generate discount rates
+ , dupireForwardGen  ::  a  -- ^ 'YieldCurve' to generate forwards
+ , dupireDiscounter  ::  b } -- ^ 'YieldCurve' to generate discount rates
 
 instance Discretize Dupire Observables1 where
     initialize (Dupire s _ _ _) = put (Observables1 s, Time 0)
