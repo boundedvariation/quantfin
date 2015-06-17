@@ -22,7 +22,7 @@ synopsis:            Quant finance library in pure Haskell.
 homepage:            https://github.com/boundedvariation/quantfin
 
 -- The license under which the package is released.
-license:             BSD3
+license:             MIT
 
 -- The file containing the license text.
 license-file:        LICENSE
