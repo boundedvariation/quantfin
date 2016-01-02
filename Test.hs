@@ -13,10 +13,10 @@ baseYC = FlatCurve 0.05
 
 black :: Black
 black = Black 
-			100     --initial stock price
-			0.2     --volatility
-			baseYC  --forward generator
-			baseYC  --discount function
+            100     --initial stock price
+            0.2     --volatility
+            baseYC  --forward generator
+            baseYC  --discount function
 
 --make a vanilla put, struck at 100, maturing at time 1
 vanopt :: ContingentClaim1
@@ -24,8 +24,8 @@ vanopt = vanillaOption Call 100 (Time 1) --built in function
 
 vanopt' :: ContingentClaim1
 vanopt' = specify $ do
-	x <- monitor (Time 1)
-	return $ CashFlow (Time 1) (max (x - 100) 0) --roll your own
+    x <- monitor (Time 1)
+    return $ CashFlow (Time 1) (max (x - 100) 0) --roll your own
 
 --Run a Monte Carlo on opt in a a black model with 10000 trials
 vanoptPrice :: Double
@@ -47,10 +47,10 @@ csPrice = quickSim black' cs 100000
 
 black' :: Black
 black' = Black 
-			100     --initial stock price
-			0.2     --volatility
-			(NetYC (FlatCurve 0.05) (FlatCurve 0.02))  --forward generator, now with a 2% dividend yield
-			baseYC  --discount rate
+            100     --initial stock price
+            0.2     --volatility
+            (NetYC (FlatCurve 0.05) (FlatCurve 0.02))  --forward generator, now with a 2% dividend yield
+            baseYC  --discount rate
 
 callSpreadAnti :: Double
 callSpreadAnti = quickSimAnti black' cs 100000
@@ -58,14 +58,14 @@ callSpreadAnti = quickSimAnti black' cs 100000
 --Let's try it with a Heston model
 heston :: Heston
 heston = Heston
-		100
-		0.04       --initial variance
-		0.04       --final variance
-		0.2        --volvol
-		(-0.7)     --correlation between processes
-		1.0        --mean reversion speed
-		baseYC     --forward generator
-		baseYC     --discount function
+        100
+        0.04       --initial variance
+        0.04       --final variance
+        0.2        --volvol
+        (-0.7)     --correlation between processes
+        1.0        --mean reversion speed
+        baseYC     --forward generator
+        baseYC     --discount function
 
 --price the call spread in the Heston model
 csHeston :: Double
@@ -77,8 +77,8 @@ squareOpt = terminalOnly (Time 1) $ \x -> x*x  --using the built in function
 
 squareOpt' :: ContingentClaim1
 squareOpt' = specify $ do --roll your own
-	x <- monitor (Time 1)
-	return $ CashFlow (Time 1) $ x*x
+    x <- monitor (Time 1)
+    return $ CashFlow (Time 1) $ x*x
 squareOptPrice :: Double
 squareOptPrice = quickSimAnti black squareOpt 100000
 
@@ -98,11 +98,11 @@ bizarrePrice = quickSimAnti black bizarre 100000
 
 main :: IO ()
 main = do
-	print vanoptPrice
-	print vanoptPrice'
-	print csPrice
-	print callSpreadAnti
-	print csHeston
-	print squareOptPrice
-	print squareOptPrice'
-	print bizarrePrice
+    print vanoptPrice
+    print vanoptPrice'
+    print csPrice
+    print callSpreadAnti
+    print csHeston
+    print squareOptPrice
+    print squareOptPrice'
+    print bizarrePrice
