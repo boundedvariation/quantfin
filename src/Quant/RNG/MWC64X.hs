@@ -78,8 +78,8 @@ skip (MWC64X st) d = MWC64X st'
         c'  = fromIntegral $ x' `mod` aConst :: Word32
         st' = buildWord64'' c' x''
 
-mkWord64 :: Word32 -> Word32 -> Word64
-mkWord64 a b = (fromIntegral $ a `shiftL` 32) .&. fromIntegral b
+--mkWord64 :: Word32 -> Word32 -> Word64
+--mkWord64 a b = (fromIntegral $ a `shiftL` 32) .&. fromIntegral b
 
 aConst, mConst, skipConst :: Word64
 aConst = 4294883355
