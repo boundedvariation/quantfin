@@ -1,6 +1,4 @@
-
 import Quant.Time
-import Data.Monoid
 import Quant.MonteCarlo
 import Quant.YieldCurve
 import Quant.ContingentClaim
