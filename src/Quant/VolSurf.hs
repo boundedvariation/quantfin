@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstrainedClassMethods #-}
 module Quant.VolSurf (
     VolSurf (..)
  ,  FlatSurf (..)

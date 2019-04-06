@@ -1,6 +1,6 @@
 
 module Quant.Time (
-	Time(..)
+    Time(..)
   , timeDiff
   , timeOffset
   , timeFromZero

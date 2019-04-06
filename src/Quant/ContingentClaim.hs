@@ -57,9 +57,11 @@ type ContingentClaim3 = forall a . Obs3 a => ContingentClaim a
 -- | Contingent claims with four observables.
 type ContingentClaim4 = forall a . Obs4 a => ContingentClaim a
 
+instance Semigroup (ContingentClaim a) where
+  (<>) = combine
+
 instance Monoid (ContingentClaim a) where
   mempty  = ContingentClaim []
-  mappend = combine
 
 -- |Basic element of a `ContingentClaim`.  Each element contains
 --a Time.  Each Time, the observables are stored in the map.
