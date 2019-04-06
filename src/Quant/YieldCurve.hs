@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstrainedClassMethods #-}
 module Quant.YieldCurve (
     YieldCurve (..)
  ,  FlatCurve (..)
